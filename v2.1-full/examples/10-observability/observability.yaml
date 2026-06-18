@@ -1,0 +1,39 @@
+# 可观测 + 语义缓存 + 大小模型分工
+
+tracing:
+  # 接 Langfuse / LangSmith，或用 OpenTelemetry GenAI 语义约定自建
+  backend: "langfuse | otel-genai"
+  capture:
+    - turn_id, session_id, snapshot_id
+    - router_decision (intent, chosen_tool)
+    - tool_calls (name, args, compiled_sql_fingerprint, rows, exec_ms)
+    - llm (model, prompt_tokens, completion_tokens, latency_ms, cost)
+    - numeric_check_result
+    - final_reply + charts
+  sampling: 1.0            # 初期全采，稳定后可降
+  alerts:
+    - when: "numeric_check_result == fail"
+      action: page_on_call
+    - when: "tool_error_rate > 5% (5m)"
+      action: warn
+    - when: "p95_latency_ms > 6000"
+      action: warn
+
+semantic_cache:
+  # 相似追问命中缓存，省钱降延迟
+  store: "redis + 向量相似度"
+  key: "embed(normalized_question) + focus_signature + snapshot_id"
+  similarity_threshold: 0.95
+  ttl_seconds: 3600
+  invalidate_on: "snapshot 变更 / 语义层指标变更"
+  note: "只缓存确定性强、与焦点绑定的结果；澄清类、写操作类不缓存。"
+
+model_routing:                # 大小模型分工，降本降延迟
+  router_model:  { name: "small-7b", use: "意图分类/实体消歧/缓存判定", cost: low }
+  synthesis_model: { name: "your-strong-llm", use: "解读/编排/图表 spec", cost: high }
+  rule: "先小模型分类与召回，复杂/高风险问题再升级到强模型。"
+
+cost_guardrail:
+  max_tokens_per_turn: 8000
+  max_tool_hops: 6
+  daily_budget_alert: true

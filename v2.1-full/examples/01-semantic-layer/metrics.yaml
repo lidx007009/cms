@@ -1,0 +1,127 @@
+# ============================================================================
+# 语义层 / 指标层（Semantic Layer）—— 全系统口径的唯一事实来源(SSOT)
+# ----------------------------------------------------------------------------
+# 这里只声明【度量 measure + 维度 dimension + 实体 entity + 连接关系】，
+# 由语义层引擎（dbt Semantic Layer / Cube / Malloy）在运行时编译成 SQL。
+# 报告、追问、主动洞察、BI 看板共用同一套定义 => 口径永不漂移。
+# 绝不让 AI 直接写 SQL/取数；AI 只产"语义查询"，由本层编译执行。
+#
+# 本文件语法贴近 dbt MetricFlow / Cube，迁移到任一引擎都只需少量调整。
+# ============================================================================
+
+semantic_layer:
+  engine: "cube | dbt-metricflow | malloy"   # 任选其一
+  version: "2.0.0"
+
+# ---- 实体（粒度主键，用于跨表 join 与行级权限）----
+entities:
+  - name: org
+    primary_key: org_id
+  - name: drug
+    primary_key: drug_id
+
+# ---- 数据源（语义层负责编译 SQL，这里只给底表）----
+data_sources:
+  - name: sales_fct
+    table: dw.dws_pharmacy_sales_d
+    time_dimension: stat_date
+    grain: day
+  - name: compliance_fct
+    table: dw.dws_compliance_txn_d
+    time_dimension: stat_date
+    grain: day
+
+# ---- 维度（追问下钻、报告分组共用）----
+dimensions:
+  - name: drug_category
+    sql: "{sales_fct}.drug_category"
+    type: categorical
+    label: 药品品类
+  - name: payment_method
+    sql: "{sales_fct}.payment_method"
+    type: categorical
+    label: 支付方式
+    values: [医保, 自费, 商保]
+  - name: source_type
+    sql: "{sales_fct}.source_type"
+    type: categorical
+    label: 客流来源
+  - name: prescription_type
+    sql: "{compliance_fct}.prescription_type"
+    type: categorical
+    label: 处方类型
+  - name: hospital_type
+    sql: "{compliance_fct}.hospital_type"
+    type: categorical
+    label: 医院类型
+  - name: month
+    sql: "date_trunc('month', {time})"
+    type: time
+    granularity: month
+
+# ---- 度量（唯一口径，SSOT）----
+measures:
+  - name: sales_amount
+    label: 销售额
+    agg: sum
+    sql: "{sales_fct}.amount"
+    format: "¥#,##0"
+    filters_default: ["{sales_fct}.is_return = 0"]   # 退货已扣
+  - name: gross_profit
+    label: 毛利
+    agg: sum
+    sql: "{sales_fct}.amount - {sales_fct}.cost"
+  - name: compliant_txn
+    label: 合规交易数
+    agg: sum
+    sql: "case when {compliance_fct}.is_compliant = 1 then 1 else 0 end"
+  - name: total_txn
+    label: 总交易数
+    agg: count
+    sql: "{compliance_fct}.txn_id"
+
+# ---- 指标（对外暴露给报告 / AI 的"业务指标"，可由 measure 复合而成）----
+metrics:
+  - name: IND_SALES_AMOUNT
+    label: 销售额
+    type: simple
+    measure: sales_amount
+    say_as: [销售额, 营业额, GMV, 卖了多少]
+    dimensions: [drug_category, payment_method, source_type, month]
+    time_grains: [day, month]
+    transforms: [mom, yoy, trend, by_dim, contribution]
+
+  - name: IND_GROSS_MARGIN_RATE
+    label: 毛利率
+    type: ratio
+    numerator: gross_profit
+    denominator: sales_amount
+    say_as: [毛利率, 毛利, 利润率]
+    dimensions: [drug_category]
+
+  - name: IND_COMPLIANCE_RATE
+    label: 合规率
+    type: ratio
+    numerator: compliant_txn
+    denominator: total_txn
+    say_as: [合规率, 合不合规, 合规情况]
+    dimensions: [drug_category, prescription_type, hospital_type]
+    scopes:                       # scope=rx 时追加过滤
+      all: []
+      rx: ["{compliance_fct}.is_rx = 1"]
+      otc: ["{compliance_fct}.is_rx = 0"]
+    transforms: [mom, yoy, trend, by_dim, contribution]
+
+  - name: IND_DTP_DOT
+    label: DTP用药持续天数
+    type: simple
+    measure: dot_avg
+    say_as: [DOT, 用药天数, 用药依从]
+    dimensions: [drug, disease_area]
+
+# ---- 治理元信息（被快照血缘、评测引用）----
+governance:
+  owner: data-platform
+  freshness_sla: "T+1 06:00"
+  certified: true               # 已认证口径，报告只允许引用 certified=true 的指标
+  pii_level: low

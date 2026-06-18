@@ -1,0 +1,60 @@
+{
+  "_comment": "AI 不写裸 SQL。对于追问(尤其长尾组合)，AI 产出这种【受约束的语义层查询(semantic query)】，后端校验(指标/维度/scope 合法 + 行级权限 + 自动 LIMIT)后交给语义层引擎编译执行。安全性≈固定API，灵活性≈SQL。",
+
+  "examples": [
+    {
+      "title": "单值 + 同环比",
+      "query": {
+        "metric": "IND_COMPLIANCE_RATE",
+        "scope": "rx",
+        "time": { "grain": "month", "range": ["2026-05", "2026-05"] },
+        "filters": [{ "dimension": "drug", "op": "=", "value": "D8821" }],
+        "transforms": ["mom"],
+        "limit": 1
+      }
+    },
+    {
+      "title": "按维度下钻（get_indicator_by_dimension）",
+      "query": {
+        "metric": "IND_COMPLIANCE_RATE",
+        "group_by": ["prescription_type"],
+        "time": { "grain": "month", "range": ["2026-05", "2026-05"] },
+        "filters": [{ "dimension": "drug", "op": "=", "value": "D8821" }],
+        "order_by": [{ "field": "value", "dir": "asc" }],
+        "limit": 20
+      }
+    },
+    {
+      "title": "归因（contribution，谁拖累了它）",
+      "query": {
+        "metric": "IND_COMPLIANCE_RATE",
+        "transforms": ["contribution"],
+        "contribution": { "compare_to": "prev_month", "candidate_dims": ["prescription_type", "hospital_type", "drug_category"] },
+        "time": { "grain": "month", "range": ["2026-05", "2026-05"] },
+        "filters": [{ "dimension": "drug", "op": "=", "value": "D8821" }]
+      }
+    },
+    {
+      "title": "长尾组合（固定 API 覆盖不了，用 semantic query 兜住）",
+      "query": {
+        "metric": "IND_SALES_AMOUNT",
+        "group_by": ["payment_method", "source_type"],
+        "time": { "grain": "month", "range": ["2026-03", "2026-05"] },
+        "filters": [
+          { "dimension": "drug_category", "op": "in", "value": ["心血管", "呼吸"] }
+        ],
+        "having": { "metric": "IND_SALES_AMOUNT", "op": ">", "value": 100000 },
+        "order_by": [{ "field": "value", "dir": "desc" }],
+        "limit": 50
+      }
+    }
+  ],
+
+  "server_side_validation": [
+    "metric / group_by / filters.dimension 必须在 metrics.yaml 中、且该 metric 声明支持",
+    "只允许 certified=true 的指标进报告；追问可放宽但仍需在语义层注册",
+    "org_id 由后端会话注入，忽略/拒绝 AI 传入的 org 过滤，强制行级权限",
+    "无 limit 时自动注入 limit=200；超过上限拒绝",
+    "时间范围超过 36 个月或跨权限范围 → 拒绝并要求澄清"
+  ]
+}

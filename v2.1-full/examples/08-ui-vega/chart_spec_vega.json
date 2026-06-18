@@ -1,0 +1,40 @@
+{
+  "_comment": "AI-to-UI 协议：图表用 Vega-Lite 标准语法(成熟渲染器、表达力强)，并用 JSON-Schema 约束模型只能产出白名单内的 mark/encoding，前端直接渲染。AI 只出 spec，不画图。",
+
+  "reply": {
+    "text": "阿托伐他汀5月合规率下滑主要由纸质处方拖累(61% vs 电子97%)。建议加强纸质处方先审方校验。",
+    "charts": [
+      {
+        "id": "chart-1",
+        "engine": "vega-lite",
+        "spec": {
+          "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+          "title": "阿托伐他汀 各处方类型合规率 (2026-05)",
+          "data": { "values": [
+            { "处方类型": "纸质处方", "合规率": 0.61 },
+            { "处方类型": "电子处方", "合规率": 0.97 },
+            { "处方类型": "无处方",   "合规率": 0.40 }
+          ]},
+          "mark": "bar",
+          "encoding": {
+            "x": { "field": "处方类型", "type": "nominal" },
+            "y": { "field": "合规率", "type": "quantitative", "axis": { "format": ".0%" } },
+            "color": {
+              "condition": { "test": "datum['合规率'] < 0.85", "value": "#d62728" },
+              "value": "#1f77b4"
+            }
+          }
+        },
+        "source": { "tool": "run_semantic_query", "snapshot_id": "SNAP-20260601-ORG1024-9a2b1f" }
+      }
+    ],
+    "follow_up_suggestions": ["纸质处方下滑集中在哪些门店？", "对比同类他汀的合规率"]
+  },
+
+  "allowed_marks": ["bar", "line", "point", "arc", "rule", "text"],
+  "render_validation": [
+    "engine 必须为 vega-lite；spec.mark 必须在 allowed_marks 内",
+    "data.values 行数 <= 500，否则降级为 table",
+    "encoding.field 必须来自工具返回的列名，禁止臆造字段"
+  ]
+}
