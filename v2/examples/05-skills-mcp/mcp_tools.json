@@ -1,0 +1,48 @@
+{
+  "_comment": "2.0 升级点 G：技能用 MCP(Model Context Protocol) 标准暴露，而非私有 manifest。换模型/接第三方 Agent 即插即用。下面是一个 MCP server 暴露的 tools 列表(tools/list 的返回)。",
+  "server": { "name": "pharmacy-analytics-mcp", "version": "2.0.0", "protocol": "mcp/2025-06" },
+
+  "tools": [
+    {
+      "name": "run_semantic_query",
+      "description": "执行受约束的语义层查询(覆盖单值/同环比/下钻/归因/趋势/长尾组合)。这是2.0的主力工具，取代1.0一堆细粒度Skill。",
+      "inputSchema": {
+        "type": "object",
+        "required": ["metric"],
+        "properties": {
+          "metric": { "type": "string", "description": "必须是语义层注册指标，如 IND_COMPLIANCE_RATE" },
+          "scope": { "type": "string", "enum": ["all", "rx", "otc"] },
+          "group_by": { "type": "array", "items": { "type": "string" } },
+          "time": { "type": "object", "properties": { "grain": { "type": "string" }, "range": { "type": "array" } } },
+          "filters": { "type": "array", "items": { "type": "object" } },
+          "transforms": { "type": "array", "items": { "enum": ["raw", "mom", "yoy", "trend", "by_dim", "contribution"] } },
+          "order_by": { "type": "array" },
+          "limit": { "type": "integer", "maximum": 200 }
+        }
+      }
+    },
+    {
+      "name": "resolve_entity",
+      "description": "把口语名解析成系统ID并返回候选+置信度(供澄清)。",
+      "inputSchema": {
+        "type": "object", "required": ["dimension", "text"],
+        "properties": { "dimension": { "type": "string" }, "text": { "type": "string" } }
+      }
+    },
+    {
+      "name": "search_metadata",
+      "description": "对指标/维度元数据做语义检索(RAG)，返回与用户问题最相关的 Top-K 指标/维度定义。AI 在真正取数前先调它定位。",
+      "inputSchema": {
+        "type": "object", "required": ["query"],
+        "properties": { "query": { "type": "string" }, "top_k": { "type": "integer", "default": 8 } }
+      }
+    }
+  ],
+
+  "guardrails": [
+    "所有 tool 调用经过统一鉴权中间件，org 由会话注入",
+    "run_semantic_query 仅接受语义层注册指标，拒绝任意 SQL",
+    "审计日志记录 tool 名/入参/编译SQL指纹/返回行数/耗时",
+    "MAX_TOOL_HOPS=6，超过则中止并提示用户缩小问题"
+  ]
+}

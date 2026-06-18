@@ -1,0 +1,79 @@
+{
+  "_comment": "技能库清单（Skills Store）。这就是直接喂给 LLM 的 function-calling / tool 定义。AI 不写 SQL，只能从这里挑工具、填参数。每个工具背后是一个受控的、经过权限校验的后端 API。",
+  "skills": [
+    {
+      "name": "get_indicator",
+      "description": "查询某个指标在指定机构/周期的单值（可选同环比）。当用户问'XX是多少''XX环比怎么样'时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "indicator_id": { "type": "string", "description": "指标ID，必须来自元数据字典，如 IND_COMPLIANCE_RATE" },
+          "period": { "type": "string", "description": "YYYY-MM，缺省继承会话焦点周期" },
+          "transform": { "type": "string", "enum": ["raw", "mom", "yoy"], "default": "raw" },
+          "filters": {
+            "type": "object",
+            "description": "过滤条件，key 为维度ID，如 {\"drug_id\":\"D8821\"}",
+            "additionalProperties": { "type": "string" }
+          }
+        },
+        "required": ["indicator_id"]
+      }
+    },
+    {
+      "name": "get_indicator_by_dimension",
+      "description": "把一个指标按某个维度拆开（下钻）。当用户问'按XX看''哪个XX最高/最低''拆一下'时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "indicator_id": { "type": "string" },
+          "dimension": { "type": "string", "description": "维度ID，如 drug_category / payment_method" },
+          "period": { "type": "string" },
+          "filters": { "type": "object", "additionalProperties": { "type": "string" } },
+          "order": { "type": "string", "enum": ["desc", "asc"], "default": "desc" },
+          "limit": { "type": "integer", "default": 10, "maximum": 50 }
+        },
+        "required": ["indicator_id", "dimension"]
+      }
+    },
+    {
+      "name": "get_root_cause_analysis",
+      "description": "对一个异常指标做归因，自动返回各子维度对变化量的贡献度（谁拖累了它）。当用户问'为什么''原因''是什么导致的'时用。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "indicator_id": { "type": "string" },
+          "period": { "type": "string" },
+          "compare_to": { "type": "string", "enum": ["prev_month", "prev_year"], "default": "prev_month" },
+          "filters": { "type": "object", "additionalProperties": { "type": "string" } },
+          "candidate_dims": { "type": "array", "items": { "type": "string" }, "description": "在哪些维度里找原因，缺省用该指标 supported_dims 全集" }
+        },
+        "required": ["indicator_id"]
+      }
+    },
+    {
+      "name": "get_indicator_trend",
+      "description": "查询指标的时间序列趋势。当用户问'趋势''近几个月''走势'时用，结果通常配折线图。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "indicator_id": { "type": "string" },
+          "last_n_months": { "type": "integer", "default": 12, "maximum": 36 },
+          "filters": { "type": "object", "additionalProperties": { "type": "string" } }
+        },
+        "required": ["indicator_id"]
+      }
+    },
+    {
+      "name": "resolve_entity",
+      "description": "把用户口语里的名字解析成系统ID。如把'阿托伐他汀'解析成 drug_id=D8821。在调用其它带 filters 的 skill 前先用它消歧。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dimension": { "type": "string" },
+          "text": { "type": "string" }
+        },
+        "required": ["dimension", "text"]
+      }
+    }
+  ]
+}

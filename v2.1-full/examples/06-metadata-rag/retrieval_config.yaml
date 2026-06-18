@@ -1,0 +1,34 @@
+# 元数据 RAG 配置
+# 指标/维度上百个时，不要把整份元数据字典塞进 Prompt(context 爆、路由乱、贵)。
+# 改为：对"指标/维度/few-shot 示例"建向量索引，每轮只召回最相关的 Top-K 进 Prompt。
+
+embedding:
+  model: "bge-m3 | text-embedding-3-large"   # 中文建议 bge-m3
+  dim: 1024
+
+index:
+  store: "pgvector | milvus | qdrant"
+  collections:
+    - name: metrics
+      source: ../01-semantic-layer/metrics.yaml
+      # 每个指标生成一条 doc：label + say_as + 维度 + 适用问法
+      doc_template: "指标:{label}({name}) 别名:{say_as} 可拆维度:{dimensions} 口径:{description}"
+    - name: dimensions
+      doc_template: "维度:{label}({name}) 别名:{aliases} 取值:{values}"
+    - name: few_shots
+      # 把历史"问句 -> 正确 semantic_query"对作为示例索引，做动态 few-shot
+      doc_template: "问:{question}\n查询:{semantic_query}"
+
+retrieval:
+  metrics_top_k: 6
+  dimensions_top_k: 8
+  few_shots_top_k: 4
+  rerank: true
+  rerank_model: "bge-reranker-v2"
+  # 命中阈值过低 -> 走澄清而非硬猜
+  min_score: 0.30
+
+prompt_assembly:
+  order: [system_rules, retrieved_metrics, retrieved_dimensions, focus_state, few_shots, user_question]
+  budget_tokens: 3000      # 控制每轮注入量，省钱降延迟
+  note: "只注入召回到的元数据，而不是全量字典。"

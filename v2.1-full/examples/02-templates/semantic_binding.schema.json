@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Semantic Binding Contract (semantic-query based)",
+  "description": "校验报告映射契约。CI 跑此 schema，契约写错(指标不存在/占位符没绑定)直接挡在合并前(fail-fast)。",
+  "type": "object",
+  "required": ["contract_version", "template_id", "data_slots", "insight_slots"],
+  "properties": {
+    "contract_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "template_id": { "type": "string" },
+    "data_slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["source", "type"],
+        "properties": {
+          "source": { "enum": ["semantic_query", "context", "system", "snapshot"] },
+          "query": {
+            "type": "object",
+            "description": "语义层查询；仅当 source=semantic_query 时必填",
+            "required": ["metric"],
+            "properties": {
+              "metric": { "type": "string" },
+              "scope": { "type": "string" },
+              "group_by": { "type": "array", "items": { "type": "string" } },
+              "time": { "type": "object" },
+              "filters": { "type": "array" },
+              "transforms": { "type": "array", "items": { "enum": ["raw", "mom", "yoy", "trend", "by_dim", "contribution"] } }
+            }
+          },
+          "path": { "type": "string" },
+          "value": { "type": "string" },
+          "type": { "enum": ["string", "number", "money", "percent", "datetime", "list"] },
+          "format": { "type": "string" },
+          "required": { "type": "boolean" },
+          "on_missing": { "enum": ["fail", "null", "zero", "placeholder"] },
+          "thresholds": { "type": "object" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "source": { "const": "semantic_query" } } },
+            "then": { "required": ["query"] }
+          }
+        ]
+      }
+    },
+    "insight_slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["prompt_id", "feed_slots"],
+        "properties": {
+          "prompt_id": { "type": "string" },
+          "feed_slots": { "type": "array", "items": { "type": "string" } },
+          "extra_query": { "type": "string" },
+          "max_words": { "type": "integer", "minimum": 20, "maximum": 600 }
+        }
+      }
+    },
+    "chart_anchors": { "type": "object" }
+  }
+}

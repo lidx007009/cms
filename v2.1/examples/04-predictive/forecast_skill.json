@@ -1,0 +1,44 @@
+{
+  "_comment": "2.1 增量④：受控预测技能(描述/诊断 → 预测/建议)。关键纪律：预测必须与'事实数字'严格区分、必须带不确定性(区间+置信度)、方法可解释、不得伪装成已发生的事实。预测由后端统计/ML 模型算，AI 只负责解读。",
+
+  "tool": {
+    "name": "forecast_metric",
+    "description": "对已注册指标做短期预测，返回点估计+置信区间+方法说明。用于'下月会怎样''照这趋势''预计'类追问。",
+    "inputSchema": {
+      "type": "object",
+      "required": ["metric", "horizon"],
+      "properties": {
+        "metric": { "type": "string", "description": "须为语义层注册指标" },
+        "filters": { "type": "array" },
+        "horizon": { "type": "integer", "description": "预测未来N个周期", "maximum": 6 },
+        "method": { "type": "string", "enum": ["auto", "naive_seasonal", "ets", "prophet", "ml"], "default": "auto" }
+      }
+    }
+  },
+
+  "result_example": {
+    "metric": "IND_COMPLIANCE_RATE",
+    "filters": [{ "dimension": "drug", "value": "D8821" }],
+    "history_tail": [
+      { "month": "2026-03", "value": 0.94 },
+      { "month": "2026-04", "value": 0.89 },
+      { "month": "2026-05", "value": 0.832 }
+    ],
+    "forecast": [
+      { "month": "2026-06", "point": 0.81, "lo80": 0.77, "hi80": 0.85, "lo95": 0.74, "hi95": 0.88 }
+    ],
+    "method": "ets",
+    "confidence": "medium",
+    "assumptions": "假设不采取整改措施、季节性延续；样本仅3个月，置信度中等。",
+    "caveat": "这是预测，非事实；如本周整改纸质处方审方，实际可能高于预测。"
+  },
+
+  "presentation_rules": [
+    "回答中预测值必须显式标注'预测'，并给出区间(如 81%，80%置信区间77%~85%)",
+    "禁止把预测和已发生数字混在同一句不加区分",
+    "样本不足/置信度low时，必须提示不确定性，必要时拒绝给点估计只给方向",
+    "预测结果也走 numeric_selfcheck：回答数字==forecast_skill 返回"
+  ],
+
+  "guardrail": "forecast 仅用于经营指标；严禁对个体患者做诊疗/疗效预测(由 compliance_filter 拦截)"
+}

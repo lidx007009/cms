@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 报告平台 · Demo（开发报告 / 查看报告）</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --brand:#2563eb; --brand-d:#1d4ed8; --good:#16a34a; --warn:#d97706; --bad:#dc2626;
+    --soft:#f1f5f9; --soft2:#f8fafc; --radius:14px; --shadow:0 6px 24px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);background:linear-gradient(180deg,#f8fafc,#eef2f7);}
+  header.top{background:#0b1220;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:30}
+  header.top .logo{font-weight:700;font-size:17px;letter-spacing:.3px}
+  header.top .logo b{color:#60a5fa}
+  .tabs{display:flex;gap:6px;margin-left:8px}
+  .tabs button{background:transparent;border:1px solid #334155;color:#cbd5e1;padding:7px 16px;border-radius:999px;cursor:pointer;font-size:14px}
+  .tabs button.active{background:var(--brand);border-color:var(--brand);color:#fff}
+  .demo-note{margin-left:auto;font-size:12px;color:#94a3b8}
+  .wrap{max-width:1180px;margin:22px auto;padding:0 18px}
+  .view{display:none}
+  .view.active{display:block}
+
+  /* ---------- 通用卡片 ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .section-title{font-size:15px;font-weight:700;margin:0 0 2px}
+  .muted{color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--muted)}
+  .pill.good{background:#dcfce7;color:#15803d}.pill.warn{background:#fef3c7;color:#b45309}.pill.bad{background:#fee2e2;color:#b91c1c}
+  .lvl-good{color:var(--good)}.lvl-warn{color:var(--warn)}.lvl-bad{color:var(--bad)}
+  button.primary{background:var(--brand);color:#fff;border:none;padding:9px 16px;border-radius:10px;cursor:pointer;font-size:14px}
+  button.primary:hover{background:var(--brand-d)}
+  button.ghost{background:#fff;border:1px solid var(--line);padding:9px 14px;border-radius:10px;cursor:pointer;font-size:14px}
+  button.ghost:hover{border-color:#cbd5e1;background:var(--soft2)}
+
+  /* ---------- 查看报告 ---------- */
+  .report-head{padding:22px 24px;margin-bottom:16px}
+  .report-head h1{margin:0 0 8px;font-size:22px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted);margin-bottom:12px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px}
+  .rsec{padding:20px 24px;margin-bottom:16px}
+  .kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:6px 0 16px}
+  .kpi{background:var(--soft2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .kpi .lbl{font-size:12px;color:var(--muted)}
+  .kpi .val{font-size:24px;font-weight:700;margin-top:4px}
+  .kpi .sub{font-size:12px;margin-top:4px}
+  .num{border-bottom:1px dashed #94a3b8;cursor:help;position:relative}
+  .insight{background:#eff6ff;border:1px solid #dbeafe;border-left:4px solid var(--brand);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.7}
+  .insight .ai-tag{display:inline-block;font-size:11px;background:var(--brand);color:#fff;border-radius:6px;padding:1px 7px;margin-right:8px;vertical-align:1px}
+  .chart-box{margin-top:14px}
+  .list2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .lcard{background:var(--soft2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .lcard h4{margin:0 0 8px;font-size:13px}
+  .lrow{display:flex;justify-content:space-between;font-size:14px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .lrow:last-child{border:none}
+
+  /* popover 血缘 */
+  .pop{position:fixed;z-index:50;max-width:330px;background:#0b1220;color:#e2e8f0;border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.6;box-shadow:0 12px 40px rgba(0,0,0,.3);display:none}
+  .pop b{color:#60a5fa}.pop code{display:block;white-space:pre-wrap;background:#1e293b;border-radius:8px;padding:8px;margin-top:8px;color:#cbd5e1;font-size:11.5px}
+
+  /* 追问 */
+  .ask{padding:18px 20px}
+  .ask .log{max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:12px;margin:12px 0}
+  .bub{max-width:88%;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.6}
+  .bub.u{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:3px}
+  .bub.a{align-self:flex-start;background:var(--soft);border:1px solid var(--line);border-bottom-left-radius:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .chip{font-size:13px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+  .chip:hover{border-color:var(--brand);color:var(--brand)}
+  .inrow{display:flex;gap:8px}
+  .inrow input{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px}
+
+  /* ---------- 开发报告 ---------- */
+  .builder{display:grid;grid-template-columns:380px 1fr;gap:16px}
+  @media(max-width:900px){.builder{grid-template-columns:1fr}.list2{grid-template-columns:1fr}}
+  .copilot{padding:16px;display:flex;flex-direction:column;min-height:560px}
+  .copilot .log{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;margin:10px 0}
+  .canvas{padding:18px}
+  .canvas h3{margin:0 0 4px;font-size:16px}
+  .mlib{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
+  .mtag{font-size:13px;border:1px solid var(--line);border-radius:10px;padding:7px 11px;cursor:pointer;background:#fff;display:flex;align-items:center;gap:6px}
+  .mtag:hover{border-color:var(--brand)}
+  .mtag.locked{opacity:.5;cursor:not-allowed;background:var(--soft)}
+  .mtag.added{background:#dcfce7;border-color:#86efac;color:#15803d}
+  .outline{margin-top:14px;border:1px dashed var(--line);border-radius:12px;padding:12px}
+  .osec{padding:10px;border-radius:10px;background:var(--soft2);margin-bottom:8px}
+  .osec.active{outline:2px solid var(--brand)}
+  .osec .oh{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14px;cursor:pointer}
+  .slot{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px 9px;margin:6px 6px 0 0}
+  .slot b{color:var(--brand)}
+  .slot .x{cursor:pointer;color:var(--muted)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  pre.json{background:#0b1220;color:#cbd5e1;border-radius:12px;padding:14px;font-size:11.5px;max-height:260px;overflow:auto;margin-top:12px}
+  .ok-banner{background:#dcfce7;border:1px solid #86efac;color:#166534;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px;display:none}
+  .step{font-size:11px;color:#fff;background:var(--muted);border-radius:6px;padding:1px 7px;margin-right:6px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">AI 报告平台 <b>Demo</b></div>
+  <div class="tabs">
+    <button id="tab-dev" class="active" onclick="switchTab('dev')">① 开发报告</button>
+    <button id="tab-view" onclick="switchTab('view')">② 查看报告</button>
+  </div>
+  <div class="demo-note">纯前端示例 · AI 交互为脚本模拟 · 数据为示例值</div>
+</header>
+
+<!-- =================== 开发报告 =================== -->
+<div id="view-dev" class="view active">
+  <div class="wrap">
+    <div class="builder">
+      <!-- Copilot -->
+      <div class="card copilot">
+        <div class="section-title">🤖 报告开发助手（Authoring Copilot）</div>
+        <div class="muted" style="font-size:12px">说需求 → 推荐已认证指标 → 自动生成契约 → 试生成预览</div>
+        <div class="log" id="devlog"></div>
+        <div class="chips" id="devchips"></div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="card canvas">
+        <h3 id="rtitle">门店月度合规经营报告（草稿）</h3>
+        <div class="muted" style="font-size:13px">面向：区域合规负责人</div>
+
+        <div style="margin-top:14px">
+          <div class="section-title">已认证指标库 <span class="muted" style="font-weight:400">（点选加入当前章节；灰色=未认证不可用）</span></div>
+          <div class="mlib" id="mlib"></div>
+        </div>
+
+        <div class="outline" id="outline"></div>
+
+        <div class="actions">
+          <button class="ghost" onclick="genBinding()">⚙️ 生成映射契约</button>
+          <button class="ghost" onclick="validateContract()">✅ 校验</button>
+          <button class="primary" onclick="trialGenerate()">▶ 试生成预览</button>
+        </div>
+        <div class="ok-banner" id="okb"></div>
+        <pre class="json" id="bindingJson" style="display:none"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== 查看报告 =================== -->
+<div id="view-view" class="view">
+  <div class="wrap" id="reportRoot"></div>
+</div>
+
+<div class="pop" id="pop"></div>
+
+<script>
+/* ============================ 数据（与方案示例一致） ============================ */
+const CERTIFIED = [
+  {id:'IND_SALES_AMOUNT', name:'销售额', certified:true, table:'dw.dws_pharmacy_sales_d', field:'amount', calc:'SUM(amount) WHERE is_return=0', dims:['品类','支付方式','客流来源']},
+  {id:'IND_GROSS_MARGIN_RATE', name:'毛利率', certified:true, table:'dw.dws_pharmacy_sales_d', field:'amount,cost', calc:'SUM(amount-cost)/SUM(amount)', dims:['品类']},
+  {id:'IND_RX_TRANSFER_RATE', name:'处方流转率', certified:true, table:'dw.dws_compliance_txn_d', field:'—', calc:'流转成功/总需求', dims:['医院类型']},
+  {id:'IND_COMPLIANCE_RATE', name:'合规率', certified:true, table:'dw.dws_compliance_txn_d', field:'is_compliant,txn_id', calc:'SUM(is_compliant)/COUNT(txn_id)', dims:['品类','处方类型','医院类型']},
+  {id:'IND_DTP_DOT', name:'DTP用药持续天数(DOT)', certified:true, table:'dw.dws_dtp_dot_m', field:'dot_avg', calc:'AVG(dot_avg)', dims:['疾病领域']},
+  {id:'IND_INVENTORY_TURN', name:'库存周转率', certified:false},
+  {id:'IND_PURCHASE_PRICE', name:'进货价', certified:false},
+];
+
+const REPORT = {
+  org:'康民大药房（中山北路店）', period:'2026年5月',
+  generated:'2026-06-01 03:12', cutoff:'2026-05-31',
+  snapshot:'SNAP-20260601-ORG1024-9a2b1f', version:'pharmacy_monthly v1.2',
+  overview:{
+    kpis:[
+      {lbl:'销售额', val:'¥2,847,500', raw:'IND_SALES_AMOUNT', sub:'本月含税(已扣退货)'},
+      {lbl:'环比', val:'-8.2%', lvl:'warn', raw:'IND_SALES_AMOUNT'},
+      {lbl:'同比', val:'+3.1%', lvl:'good', raw:'IND_SALES_AMOUNT'},
+      {lbl:'毛利率', val:'24.1%', raw:'IND_GROSS_MARGIN_RATE'},
+      {lbl:'处方流转率', val:'56.3%', raw:'IND_RX_TRANSFER_RATE'},
+    ],
+    insight:'本月销售额 ¥2,847,500，环比下滑 8.2%、同比微增 3.1%；毛利率 24.1% 基本平稳。环比下滑主要受心血管品类拖累，需结合下文合规与品类分析。',
+    trend:[ {m:'2025-06',v:309},{m:'07',v:298},{m:'08',v:315},{m:'09',v:302},{m:'10',v:330},{m:'11',v:341},{m:'12',v:355},{m:'2026-01',v:332},{m:'02',v:301},{m:'03',v:318},{m:'04',v:310},{m:'05',v:285} ]
+  },
+  compliance:{
+    kpis:[
+      {lbl:'整体合规率', val:'83.2%', lvl:'bad', raw:'IND_COMPLIANCE_RATE', sub:'环比 -6.1%（红线95%）'},
+      {lbl:'处方药合规率', val:'74.0%', lvl:'bad', raw:'IND_COMPLIANCE_RATE'},
+      {lbl:'DTP · DOT', val:'0.71', lvl:'bad', raw:'IND_DTP_DOT', sub:'< 0.8 高风险'},
+    ],
+    insight:'本月合规处于<b>高风险档</b>：合规率 83.2%，低于 85% 红线且环比下滑 6.1%。下滑主要由<b>纸质处方</b>拖累（合规率仅 61%，贡献 -4.2pct），电子处方 97% 正常；处方药合规率 74% 明显偏低。DOT 0.71 低于 0.8 高风险线，存在断药风险。建议：对纸质处方建立"先审方后售药"强校验，并启动心血管慢病 DTP 续方提醒。',
+    byPresc:[ {name:'纸质处方',v:61},{name:'电子处方',v:97},{name:'无处方',v:40} ]
+  },
+  category:{
+    growth:[ {name:'维生素',v:'+18%'},{name:'医疗器械',v:'+12%'},{name:'母婴',v:'+9%'} ],
+    decline:[ {name:'心血管',v:'-21%'},{name:'呼吸',v:'-14%'},{name:'抗感染',v:'-7%'} ]
+  },
+  risk:'高风险：① 纸质处方合规率仅 61%，存在合规处罚风险；② DOT 0.71 反映慢病患者断药风险；③ 心血管品类销售额环比 -21%。建议下月：强制纸质处方先审方、上线慢病续方提醒、复盘心血管处方外流原因。'
+};
+
+const LINEAGE = {
+  IND_SALES_AMOUNT:{口径:'含税销售额(已扣退货)', 来源:'dw.dws_pharmacy_sales_d.amount', 算法:'SUM(amount) WHERE is_return=0', sql:"SELECT SUM(amount) FROM dw.dws_pharmacy_sales_d\nWHERE org_id IN(:org) AND is_return=0\n  AND stat_date BETWEEN '2026-05-01' AND '2026-05-31'"},
+  IND_GROSS_MARGIN_RATE:{口径:'毛利率', 来源:'dws_pharmacy_sales_d.amount,cost', 算法:'SUM(amount-cost)/SUM(amount)', sql:"SELECT SUM(amount-cost)*1.0/NULLIF(SUM(amount),0)\nFROM dw.dws_pharmacy_sales_d WHERE ..."},
+  IND_RX_TRANSFER_RATE:{口径:'处方流转率', 来源:'dws_compliance_txn_d', 算法:'流转成功/总需求', sql:'SELECT ... FROM dw.dws_compliance_txn_d'},
+  IND_COMPLIANCE_RATE:{口径:'合规交易/总交易', 来源:'dws_compliance_txn_d.is_compliant,txn_id', 算法:'SUM(is_compliant)/COUNT(txn_id)', sql:"SELECT SUM(CASE WHEN is_compliant=1 THEN 1 ELSE 0 END)*1.0/COUNT(txn_id)\nFROM dw.dws_compliance_txn_d WHERE org_id IN(:org) AND ..."},
+  IND_DTP_DOT:{口径:'平均用药持续天数', 来源:'dws_dtp_dot_m.dot_avg', 算法:'AVG(dot_avg)', sql:'SELECT AVG(dot_avg) FROM dw.dws_dtp_dot_m WHERE ...'}
+};
+
+/* ============================ Tab 切换 ============================ */
+function switchTab(t){
+  document.getElementById('view-dev').classList.toggle('active', t==='dev');
+  document.getElementById('view-view').classList.toggle('active', t==='view');
+  document.getElementById('tab-dev').classList.toggle('active', t==='dev');
+  document.getElementById('tab-view').classList.toggle('active', t==='view');
+  window.scrollTo(0,0);
+}
+
+/* ============================ 图表（纯 SVG，离线可用） ============================ */
+function lineChart(data, {w=560,h=220,fmt=v=>v}={}){
+  const pad={l:44,r:14,t:14,b:28}; const iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
+  const vals=data.map(d=>d.v); const max=Math.max(...vals)*1.08, min=Math.min(...vals)*0.92;
+  const x=i=>pad.l+iw*i/(data.length-1); const y=v=>pad.t+ih*(1-(v-min)/(max-min));
+  let pts=data.map((d,i)=>`${x(i)},${y(d.v)}`).join(' ');
+  let dots=data.map((d,i)=>`<circle cx="${x(i)}" cy="${y(d.v)}" r="3" fill="#2563eb"/>`).join('');
+  let area=`${pad.l},${pad.t+ih} ${pts} ${x(data.length-1)},${pad.t+ih}`;
+  let labels=data.map((d,i)=> (i%2===0)?`<text x="${x(i)}" y="${h-8}" font-size="10" fill="#94a3b8" text-anchor="middle">${d.m}</text>`:'').join('');
+  let gl=''; for(let g=0;g<=3;g++){let yy=pad.t+ih*g/3;gl+=`<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f7"/>`;}
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%">${gl}<polygon points="${area}" fill="#dbeafe" opacity=".5"/><polyline points="${pts}" fill="none" stroke="#2563eb" stroke-width="2"/>${dots}${labels}</svg>`;
+}
+function barChart(data, {w=560,h=220,fmt=v=>v+'%',redLine=85}={}){
+  const pad={l:44,r:14,t:14,b:36}; const iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
+  const max=100; const bw=iw/data.length*0.5;
+  let bars=data.map((d,i)=>{
+    const cx=pad.l+iw*(i+0.5)/data.length; const bh=ih*d.v/max; const yy=pad.t+ih-bh;
+    const col=d.v<redLine?'#dc2626':'#2563eb';
+    return `<rect x="${cx-bw/2}" y="${yy}" width="${bw}" height="${bh}" rx="4" fill="${col}"/>
+            <text x="${cx}" y="${yy-5}" font-size="11" fill="#334155" text-anchor="middle">${fmt(d.v)}</text>
+            <text x="${cx}" y="${h-12}" font-size="11" fill="#64748b" text-anchor="middle">${d.name}</text>`;
+  }).join('');
+  const ry=pad.t+ih*(1-redLine/max);
+  const rl=`<line x1="${pad.l}" y1="${ry}" x2="${w-pad.r}" y2="${ry}" stroke="#dc2626" stroke-dasharray="5 4"/><text x="${w-pad.r}" y="${ry-4}" font-size="10" fill="#dc2626" text-anchor="end">红线 ${redLine}%</text>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%">${rl}${bars}</svg>`;
+}
+
+/* ============================ 血缘 popover ============================ */
+function num(text, mid){ return `<span class="num" onmouseenter="showPop(event,'${mid}')" onmouseleave="hidePop()">${text}</span>`; }
+function showPop(e,mid){
+  const L=LINEAGE[mid]; if(!L) return;
+  const p=document.getElementById('pop');
+  p.innerHTML=`<div>📌 <b>为什么是这个数</b></div>
+    <div style="margin-top:6px">口径：${L.口径}<br>来源：<b>${L.来源}</b><br>算法：${L.算法}<br>时间：2026-05 · 已与 BI 对账</div>
+    <code>${L.sql}</code>`;
+  p.style.display='block';
+  const r=e.target.getBoundingClientRect();
+  p.style.left=Math.min(r.left, window.innerWidth-350)+'px';
+  p.style.top=(r.bottom+8)+'px';
+}
+function hidePop(){ document.getElementById('pop').style.display='none'; }
+
+/* ============================ 查看报告 渲染 ============================ */
+function kpiHtml(k){
+  const lvl=k.lvl?('lvl-'+k.lvl):'';
+  return `<div class="kpi"><div class="lbl">${k.lbl}</div>
+    <div class="val ${lvl}">${num(k.val,k.raw)}</div>
+    ${k.sub?`<div class="sub muted">${k.sub}</div>`:''}</div>`;
+}
+function renderReport(){
+  const R=REPORT;
+  const root=document.getElementById('reportRoot');
+  root.innerHTML=`
+  <div class="card report-head">
+    <h1>${R.org} · ${R.period} 经营分析报告</h1>
+    <div class="meta">
+      <span>生成时间：${R.generated}</span><span>数据截止：${R.cutoff}</span>
+      <span>快照：${R.snapshot}</span><span>模板：${R.version}</span>
+    </div>
+    <div class="badges">
+      <span class="pill good">● 数据已与 BI 对账</span>
+      <span class="pill">● 口径 certified</span>
+      <span class="pill">● 数字可点查血缘</span>
+      <span class="pill warn">● 含 AI 解读（数值自校验通过）</span>
+    </div>
+  </div>
+
+  <div class="card rsec">
+    <p class="section-title">一、整体经营概览</p>
+    <div class="kgrid">${R.overview.kpis.map(kpiHtml).join('')}</div>
+    <div class="insight"><span class="ai-tag">AI 解读</span>${R.overview.insight}</div>
+    <div class="chart-box"><div class="muted" style="font-size:12px;margin-bottom:4px">销售额近 12 个月趋势（万元）</div>${lineChart(R.overview.trend)}</div>
+  </div>
+
+  <div class="card rsec">
+    <p class="section-title">二、合规经营分析</p>
+    <div class="kgrid">${R.compliance.kpis.map(kpiHtml).join('')}</div>
+    <div class="insight"><span class="ai-tag">AI 解读</span>${R.compliance.insight}</div>
+    <div class="chart-box"><div class="muted" style="font-size:12px;margin-bottom:4px">各处方类型合规率</div>${barChart(R.compliance.byPresc)}</div>
+  </div>
+
+  <div class="card rsec">
+    <p class="section-title">三、品类表现</p>
+    <div class="list2">
+      <div class="lcard"><h4 class="lvl-good">▲ TOP3 增长品类</h4>${R.category.growth.map(c=>`<div class="lrow"><span>${c.name}</span><span class="lvl-good">${c.v}</span></div>`).join('')}</div>
+      <div class="lcard"><h4 class="lvl-bad">▼ TOP3 下滑品类</h4>${R.category.decline.map(c=>`<div class="lrow"><span>${c.name}</span><span class="lvl-bad">${c.v}</span></div>`).join('')}</div>
+    </div>
+  </div>
+
+  <div class="card rsec">
+    <p class="section-title">四、风险提示与下月建议</p>
+    <div class="insight"><span class="ai-tag">AI 解读</span>${R.risk}</div>
+  </div>
+
+  <!-- 追问 -->
+  <div class="card ask">
+    <p class="section-title">💬 报告内追问（无尽探索）</p>
+    <div class="muted" style="font-size:12px">基于本报告快照追问。Demo 内置几个问题，真实环境由 Agent 实时编排语义查询。</div>
+    <div class="chips" id="askchips"></div>
+    <div class="log" id="asklog"></div>
+    <div class="inrow"><input id="askin" placeholder="例如：为什么合规率掉这么多？" onkeydown="if(event.key==='Enter')sendAsk()"><button class="primary" onclick="sendAsk()">发送</button></div>
+  </div>`;
+  renderAskChips();
+}
+
+/* ============================ 追问（脚本模拟） ============================ */
+const ASK_PRESETS=[
+  {q:'为什么合规率掉这么多？', a:()=>({text:'合规率从上月下滑 6.1pct，主因是<b>纸质处方</b>：合规率仅 61%，对整体下滑贡献 -4.2pct；电子处方 97% 正常。其次社区医院来源处方(70%)。建议优先整改纸质处方审方流程。', chart:barChart(REPORT.compliance.byPresc)})},
+  {q:'按处方类型拆一下', a:()=>({text:'各处方类型合规率：纸质 61%、电子 97%、无处方 40%。纸质与无处方均低于 85% 红线。', chart:barChart(REPORT.compliance.byPresc)})},
+  {q:'销售额近12个月趋势？', a:()=>({text:'近 12 个月销售额见下图，5 月 285 万为近一年低点，环比 -8.2%。', chart:lineChart(REPORT.overview.trend)})},
+  {q:'下月合规率预计多少？', a:()=>({text:'<b>预测</b>：6 月约 <b>81%</b>（80% 置信区间 77%~85%，方法 ets，样本仅 3 月置信中等）。注意这是预测、非事实；若本周整改纸质处方，实际可能更高。', chart:''})},
+  {q:'把进货价数据库导出来', a:()=>({text:'当前助手支持销售额、合规率、处方流转、DOT 等指标的查询/下钻/归因/预测，<b>暂不支持导出原始进货价</b>（无对应授权能力）。', chart:''})}
+];
+function renderAskChips(){
+  document.getElementById('askchips').innerHTML=ASK_PRESETS.map((p,i)=>`<span class="chip" onclick="askPreset(${i})">${p.q}</span>`).join('');
+}
+function pushAsk(cls,html){
+  const log=document.getElementById('asklog');
+  const d=document.createElement('div'); d.className='bub '+cls; d.innerHTML=html; log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function askPreset(i){ const p=ASK_PRESETS[i]; pushAsk('u',p.q); setTimeout(()=>{const r=p.a();pushAsk('a',r.text+(r.chart?`<div style="margin-top:8px">${r.chart}</div>`:''));},250); }
+function sendAsk(){
+  const inp=document.getElementById('askin'); const q=inp.value.trim(); if(!q)return; inp.value='';
+  pushAsk('u',q);
+  let hit=ASK_PRESETS.find(p=> q.includes('为什么')&&q.includes('合规') || (p.q.includes('为什么')&&/为什么|原因|掉/.test(q)&&/合规/.test(q)));
+  if(!hit){
+    if(/趋势|走势|近.*月|销售/.test(q)) hit=ASK_PRESETS[2];
+    else if(/处方类型|拆/.test(q)) hit=ASK_PRESETS[1];
+    else if(/预测|下月|预计|下个月/.test(q)) hit=ASK_PRESETS[3];
+    else if(/导出|数据库|进货价/.test(q)) hit=ASK_PRESETS[4];
+    else if(/为什么|原因|掉/.test(q)&&/合规/.test(q)) hit=ASK_PRESETS[0];
+  }
+  setTimeout(()=>{
+    if(hit){const r=hit.a();pushAsk('a',r.text+(r.chart?`<div style="margin-top:8px">${r.chart}</div>`:''));}
+    else pushAsk('a','这是离线 Demo，仅内置了几个示例问题（见上方快捷问题）。真实环境中，Agent 会把你的问题实时编排成受控语义查询并作答。');
+  },250);
+}
+
+/* ============================ 开发报告（脚本化 Copilot + 可交互画布） ============================ */
+const state = {
+  sections:[
+    {id:'overview', name:'一、整体经营概览', slots:[]},
+    {id:'compliance', name:'二、合规经营分析', slots:[]},
+    {id:'risk', name:'三、风险提示与建议', slots:[]},
+  ],
+  active:'compliance'
+};
+function devlog(cls,html){
+  const log=document.getElementById('devlog');
+  const d=document.createElement('div'); d.className='bub '+cls; d.innerHTML=html; log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function setChips(arr){
+  document.getElementById('devchips').innerHTML=arr.map((c,i)=>`<span class="chip" onclick="devStep(${c.step})">${c.t}</span>`).join('');
+}
+function renderMlib(){
+  document.getElementById('mlib').innerHTML=CERTIFIED.map(m=>{
+    if(!m.certified) return `<span class="mtag locked" title="未认证指标，不能进报告">🔒 ${m.name}</span>`;
+    const added=state.sections.find(s=>s.id===state.active).slots.includes(m.id);
+    return `<span class="mtag ${added?'added':''}" onclick="addMetric('${m.id}')">${added?'✓':'＋'} ${m.name}</span>`;
+  }).join('');
+}
+function renderOutline(){
+  document.getElementById('outline').innerHTML=state.sections.map(s=>`
+    <div class="osec ${s.id===state.active?'active':''}" onclick="setActive('${s.id}')">
+      <div class="oh"><span>${s.name}</span><span class="muted" style="font-size:12px">${s.id===state.active?'当前编辑':'点击编辑'}</span></div>
+      <div>${s.slots.length? s.slots.map(id=>{const m=CERTIFIED.find(x=>x.id===id);return `<span class="slot"><b>${m.name}</b><span class="x" onclick="event.stopPropagation();delMetric('${s.id}','${id}')">✕</span></span>`}).join(''):'<span class="muted" style="font-size:12px">（空，点上方指标加入）</span>'}</div>
+    </div>`).join('');
+}
+function setActive(id){ state.active=id; renderMlib(); renderOutline(); }
+function addMetric(id){
+  const s=state.sections.find(x=>x.id===state.active);
+  if(!s.slots.includes(id)){ s.slots.push(id); const m=CERTIFIED.find(x=>x.id===id);
+    devlog('a',`已把指标 <b>${m.name}</b> 加入「${s.name}」。它支持按 ${m.dims?m.dims.join('、'):'—'} 拆分。`); }
+  renderMlib(); renderOutline();
+}
+function delMetric(sid,id){ const s=state.sections.find(x=>x.id===sid); s.slots=s.slots.filter(x=>x!==id); renderMlib(); renderOutline(); }
+
+function genBinding(){
+  const slots={};
+  state.sections.forEach(s=>s.slots.forEach(id=>{
+    const m=CERTIFIED.find(x=>x.id===id);
+    slots[s.id+'.'+id.toLowerCase()]={source:'semantic_query', query:{metric:id, time:{grain:'month', range:['$period','$period']}}, type:'auto', format:'auto'};
+  }));
+  const binding={contract_version:'1.0.0', template_id:'pharmacy_monthly_draft', data_slots:slots};
+  const el=document.getElementById('bindingJson'); el.style.display='block';
+  el.textContent=JSON.stringify(binding,null,2);
+  devlog('a','已根据你选的指标<b>自动生成映射契约</b>（见右下 JSON）。契约由系统生成，绑定到语义层指标，我不会手写口径。');
+}
+function validateContract(){
+  const total=state.sections.reduce((a,s)=>a+s.slots.length,0);
+  const okb=document.getElementById('okb'); okb.style.display='block';
+  if(total===0){ okb.style.background='#fee2e2';okb.style.color='#b91c1c';okb.style.borderColor='#fca5a5'; okb.textContent='✗ 校验失败：还没有任何指标，至少给「合规分析」加 1 个指标。'; return;}
+  okb.style.background='#dcfce7';okb.style.color='#166534';okb.style.borderColor='#86efac';
+  okb.innerHTML=`✓ 校验通过：${total} 个数据槽，全部绑定到 certified 指标，schema 合法。可以试生成 / 发布。`;
+  devlog('a',`契约校验通过（${total} 个槽位，均为已认证指标）。`);
+}
+function trialGenerate(){
+  const total=state.sections.reduce((a,s)=>a+s.slots.length,0);
+  if(total===0){ devlog('a','请先给章节加入至少 1 个指标再试生成。'); return; }
+  devlog('a','正在用「康民大药房 · 2026年5月」真实数据试生成……✅ 数字已与 BI 对账一致。已切换到「查看报告」预览效果。');
+  setTimeout(()=>switchTab('view'),700);
+}
+
+/* 脚本化对话步骤 */
+function devStep(n){
+  if(n===1){
+    devlog('u','我要做一个"门店月度合规经营报告"，给区域合规负责人看。');
+    setTimeout(()=>{ devlog('a','好的。建议三章：①整体概览 ②合规分析 ③风险与建议（右侧已为你建好结构）。<br>合规分析章我推荐这几个<b>已认证</b>指标：合规率、处方药合规率(scope=rx)、DTP的DOT。要加吗？');
+      setChips([{t:'好，加上这些指标',step:2},{t:'再加个销售额环比',step:3},{t:'生成契约并预览',step:4}]); },300);
+  }
+  if(n===2){ devlog('u','好，加上这些指标'); setActive('compliance'); addMetric('IND_COMPLIANCE_RATE'); addMetric('IND_DTP_DOT');
+    setTimeout(()=>{devlog('a','已加入合规率、DOT。合规率支持按<b>处方类型</b>拆，归因时能定位到纸质/电子处方。还要别的吗？'); setChips([{t:'再加个销售额环比',step:3},{t:'生成契约并预览',step:4}]);},300);}
+  if(n===3){ devlog('u','再加个销售额环比'); setActive('overview'); addMetric('IND_SALES_AMOUNT');
+    setTimeout(()=>{devlog('a','销售额已认证 ✅，已加入「整体概览」(默认带环比/同比)。<br>提示：你想要的"进货价"是<b>未认证指标</b>，不能进报告——需要的话可先走指标认证流程。'); setChips([{t:'生成契约并预览',step:4}]);},300);}
+  if(n===4){ devlog('u','生成契约并预览'); genBinding(); setTimeout(validateContract,300); setTimeout(()=>{devlog('a','契约已生成并通过评测门禁，点「▶ 试生成预览」看真实效果，确认后即可发布给业务方查看与追问。'); setChips([{t:'▶ 试生成预览',step:5}]);},700);}
+  if(n===5){ trialGenerate(); }
+}
+
+/* ============================ init ============================ */
+function init(){
+  renderMlib(); renderOutline(); renderReport();
+  devlog('a','你好！我是<b>报告开发助手</b>。告诉我你想做什么报告，我来推荐已认证指标、自动生成契约并试生成预览。点下面任一开始 👇');
+  setChips([{t:'我要做"门店月度合规报告"',step:1}]);
+}
+init();
+</script>
+</body>
+</html>

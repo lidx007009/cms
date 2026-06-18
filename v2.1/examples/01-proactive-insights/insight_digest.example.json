@@ -1,0 +1,51 @@
+{
+  "_comment": "主动洞察推送的产物：一份'本周经营异常摘要'。每条洞察都自带根因、证据数字、建议、以及一键跳转到追问的入口(seed_question)，把'主动洞察'和2.0的'追问'打通成闭环。",
+  "digest_id": "DIGEST-20260601-ORG1024",
+  "org": { "id": "ORG1024", "name": "康民大药房（中山北路店）" },
+  "period": "2026-05",
+  "generated_at": "2026-06-01T07:03:00+08:00",
+  "anchored_snapshot_id": "SNAP-20260601-ORG1024-9a2b1f",
+
+  "insights": [
+    {
+      "rank": 1,
+      "severity": "high",
+      "detector": "threshold",
+      "headline": "合规率跌破红线：83.2%（环比 -6.1%）",
+      "root_cause": "纸质处方合规率仅 61%，对整体下滑贡献 -4.2pct，是主因。",
+      "evidence": [
+        { "field": "compliance.rate", "value": 0.832 },
+        { "field": "compliance.mom", "value": -0.061 },
+        { "field": "breakdown.纸质处方.rate", "value": 0.61 }
+      ],
+      "recommendation": "对纸质处方建立'先审方后售药'强校验，本周内整改。",
+      "numeric_check": "passed",
+      "seed_question": "为什么纸质处方合规率5月掉这么多？按门店再拆一下",
+      "chart": { "engine": "vega-lite", "ref": "compliance_by_prescription_type" }
+    },
+    {
+      "rank": 2,
+      "severity": "high",
+      "detector": "threshold",
+      "headline": "DTP 用药依从恶化：DOT 0.71（<0.8 高风险）",
+      "root_cause": "心血管慢病续方率下降，疑似断药。",
+      "evidence": [ { "field": "dtp.dot", "value": 0.71 } ],
+      "recommendation": "启动心血管慢病 DTP 续方提醒。",
+      "seed_question": "哪些药品的 DOT 最低？近6个月趋势如何？"
+    },
+    {
+      "rank": 3,
+      "severity": "medium",
+      "detector": "mom_change",
+      "headline": "心血管品类销售额环比 -21%",
+      "root_cause": "自费支付占比下降，疑似医保政策或处方外流。",
+      "evidence": [ { "field": "sales.心血管.mom", "value": -0.21 } ],
+      "seed_question": "心血管品类销售额按支付方式和来源拆一下"
+    }
+  ],
+
+  "footer": {
+    "suppressed_count": 2,
+    "note": "另有2条低优先级洞察未展示，可在'全部洞察'查看。点击任意洞察可进入对话继续追问。"
+  }
+}

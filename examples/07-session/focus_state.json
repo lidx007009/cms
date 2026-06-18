@@ -1,0 +1,44 @@
+{
+  "_comment": "会话焦点状态（Focus State）。多轮追问时，用户大量用指代('它''那个药')和省略('B药呢')。后端维护这个对象，每轮根据用户话术更新它，并在调用 skill 前用它补全缺省参数。这是'听得懂人话'的关键。",
+
+  "session_id": "sess-9931",
+  "anchored_snapshot_id": "SNAP-20260601-ORG1024-7f3a9c",
+
+  "focus": {
+    "org_id": "ORG1024",
+    "period": "2026-05",
+    "indicator_id": "IND_COMPLIANCE_RATE",
+    "filters": { "drug_id": "D8821" },
+    "last_dimension": "prescription_type",
+    "last_entity": { "type": "drug_id", "id": "D8821", "name": "阿托伐他汀钙片" }
+  },
+
+  "inheritance_rules": [
+    "用户没说周期 → 继承 focus.period",
+    "用户说'它/这个/那个' → 继承 focus.last_entity 对应的 filters",
+    "用户只换了指标（如'那毛利率呢'）→ 保留 period + filters，只改 indicator_id",
+    "用户只换了实体（如'那B药呢'）→ 保留 indicator_id + period，替换 filters 里的实体",
+    "用户说'整体/全部' → 清空 filters"
+  ],
+
+  "turns": [
+    {
+      "t": 1,
+      "user": "为什么阿托伐他汀5月合规率掉这么多？",
+      "resolved": { "indicator_id": "IND_COMPLIANCE_RATE", "period": "2026-05", "filters": { "drug_id": "D8821" }, "intent": "root_cause" },
+      "skill_calls": ["resolve_entity(drug_id,'阿托伐他汀')", "get_root_cause_analysis(IND_COMPLIANCE_RATE, drug_id=D8821, 2026-05)"]
+    },
+    {
+      "t": 2,
+      "user": "那按处方类型拆一下",
+      "note": "省略了指标/周期/药品，全部从 focus 继承",
+      "resolved": { "indicator_id": "IND_COMPLIANCE_RATE", "period": "2026-05", "filters": { "drug_id": "D8821" }, "dimension": "prescription_type", "intent": "by_dimension" }
+    },
+    {
+      "t": 3,
+      "user": "它的销售额趋势呢",
+      "note": "'它'=阿托伐他汀；只换指标+动作，周期/实体继承",
+      "resolved": { "indicator_id": "IND_SALES_AMOUNT", "filters": { "drug_id": "D8821" }, "intent": "trend", "last_n_months": 12 }
+    }
+  ]
+}

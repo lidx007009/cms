@@ -1,0 +1,28 @@
+# few-shot 晋升 / 淘汰规则（2.1 增量②）
+# few-shot 库是"活资产"，必须有准入、晋升、淘汰、回滚的治理，否则会越长越脏。
+
+candidate_intake:
+  sources: [thumbs_up, adopted, edited]
+  weights: { thumbs_up: 1, adopted: 1, edited: 3 }   # 用户修正最值钱
+  must_have: [user_query, validated_query]            # 入库前查询必须能在语义层成功执行
+  dedupe: "按 user_query 语义相似度去重(>0.92 合并并累加权重)"
+
+promotion:                       # 候选 → 线上
+  net_weight_threshold: 3
+  require_offline_eval_pass: true   # 加入后在 golden_set 上不得降分
+  shadow_first: true                # 先影子模式跑1周，看是否真的提升
+  max_active_per_intent: 8          # 每类意图最多激活 N 条，控制注入预算
+
+demotion:                        # 线上 → 下线
+  recent_negative_rate_gt: 0.20     # 近2周差评率超阈值
+  staleness_days: 90                # 长期未被召回命中
+  on_metric_change: "相关指标口径变更 → 立即失效，需重新校验"
+
+rollback:
+  keep_versions: 10                 # 保留历史快照
+  trigger: "线上指标(满意度/数值错误率)环比恶化 → 一键回滚到上一稳定版"
+
+governance:
+  owner: ai-platform
+  audit: "每次晋升/淘汰记录操作人、依据反馈event_id、评测分数"
+  review_cadence: "monthly 人工抽检 20 条 active few-shot"

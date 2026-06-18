@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Semantic Binding Contract",
+  "description": "校验报告映射契约的 JSON Schema。CI 里跑这个 schema 校验，契约写错时直接挡在合并前。",
+  "type": "object",
+  "required": ["contract_version", "template_id", "data_slots", "insight_slots"],
+  "properties": {
+    "contract_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "template_id": { "type": "string" },
+    "description": { "type": "string" },
+    "data_slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["source", "type"],
+        "properties": {
+          "source": { "enum": ["indicator", "context", "system", "snapshot"] },
+          "indicator_id": { "type": "string" },
+          "transform": { "enum": ["mom", "yoy", "trend_12m", "by_dim", "contribution"] },
+          "params": { "type": "object" },
+          "type": { "enum": ["string", "number", "money", "percent", "datetime", "list"] },
+          "format": { "type": "string" },
+          "unit": { "type": "string" },
+          "required": { "type": "boolean" },
+          "on_missing": { "enum": ["fail", "null", "zero", "placeholder"] },
+          "thresholds": { "type": "object" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "source": { "const": "indicator" } } },
+            "then": { "required": ["indicator_id"] }
+          }
+        ]
+      }
+    },
+    "insight_slots": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["prompt_id", "feed_slots"],
+        "properties": {
+          "prompt_id": { "type": "string" },
+          "feed_slots": { "type": "array", "items": { "type": "string" } },
+          "extra_data": { "type": "array", "items": { "type": "string" } },
+          "max_words": { "type": "integer", "minimum": 20, "maximum": 600 }
+        }
+      }
+    },
+    "chart_anchors": { "type": "object" }
+  }
+}

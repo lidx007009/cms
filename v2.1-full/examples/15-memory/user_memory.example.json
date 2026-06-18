@@ -1,0 +1,44 @@
+{
+  "_comment": "跨会话长期记忆(会话内焦点之外)。用检索方式注入，提升个性化体验且完全可控/可编辑/可关闭。注意：只存'偏好与行为画像'，不存敏感明细。",
+
+  "user_id": "U-9931",
+  "role": "区域合规负责人",
+  "scope": { "org_ids": ["ORG1024", "ORG1025", "ORG1031"] },
+
+  "learned_preferences": {
+    "_comment": "由行为统计 + 显式设置得出，每条带来源与可信度，便于解释与纠错。",
+    "favorite_metrics": [
+      { "metric": "IND_COMPLIANCE_RATE", "source": "behavior", "freq_30d": 41 },
+      { "metric": "IND_DTP_DOT", "source": "behavior", "freq_30d": 18 }
+    ],
+    "default_period_pref": "上一完结月",
+    "preferred_chart": "bar_chart",
+    "watch_list": [
+      { "type": "drug_category", "value": "心血管", "reason": "用户手动关注" },
+      { "type": "org", "value": "ORG1031", "reason": "近期合规多次预警" }
+    ],
+    "verbosity": "简洁，先结论",
+    "language": "zh-CN"
+  },
+
+  "injection_policy": {
+    "how": "追问/报告时，把相关记忆作为'软提示'检索注入(类似RAG)，不覆盖用户当轮明确指令",
+    "precedence": "当轮显式指令 > 会话焦点 > 长期记忆",
+    "budget_tokens": 400
+  },
+
+  "controls": {
+    "user_visible": true,
+    "user_editable": true,
+    "forgettable": true,
+    "opt_out": "用户可一键关闭个性化记忆",
+    "ttl_days": 180,
+    "pii_excluded": true,
+    "audit": "记忆的写入/读取/删除均留痕"
+  },
+
+  "example_effect": {
+    "without_memory": "用户问'合规率怎么样' → 反问看哪个范围/周期",
+    "with_memory": "直接默认 上一完结月 + 用户watch_list(心血管/ORG1031) 给出简洁结论，并提示'已按你常看口径，如需调整告诉我'"
+  }
+}

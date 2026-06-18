@@ -1,0 +1,55 @@
+# 主动洞察 · 异常巡检配置
+# 让系统"无需提问也能发现问题"：定时跑指标 → 检测异常 → 自动归因(语义层 contribution)
+# → 叙事生成 → 推送/落到报告。与追问能力共用同一套语义层与归因。
+
+scan:
+  schedule: "0 7 * * 1"            # 每周一 07:00（也可 T+1 每日）
+  scope:
+    org_selector: "all_visible"   # 按运营人员权限范围批量巡检
+    metrics:
+      - { metric: IND_COMPLIANCE_RATE, scope: all }
+      - { metric: IND_SALES_AMOUNT }
+      - { metric: IND_GROSS_MARGIN_RATE }
+      - { metric: IND_DTP_DOT }
+    drilldown_dims: [drug_category, prescription_type, hospital_type, payment_method]
+
+detectors:
+  # 多种检测器并行，命中任一即生成候选洞察
+  - type: threshold            # 业务红线（与报告阈值同源）
+    rules:
+      - { metric: IND_COMPLIANCE_RATE, op: "<", value: 0.85, severity: high }
+      - { metric: IND_DTP_DOT, op: "<", value: 0.8, severity: high }
+  - type: mom_change           # 环比突变
+    rules:
+      - { metric: "*", abs_pct_gt: 0.10, severity: medium }
+  - type: zscore               # 相对自身历史的统计异常
+    window_months: 12
+    z_threshold: 2.5
+    severity: medium
+  - type: trend_break          # 趋势拐点（连续N月单调后反转）
+    min_run: 3
+    severity: low
+
+ranking:
+  # 洞察太多没人看 —— 必须排序，只推 TopN
+  score: "severity_weight * 0.5 + business_impact * 0.3 + novelty * 0.2"
+  business_impact: "abs(metric_value_change) * metric_revenue_weight"  # 影响金额越大越靠前
+  novelty: "是否与上次巡检重复，重复则降权"     # 防止天天推同一条
+  top_n_per_org: 5
+  dedupe_window_days: 7
+
+actions:
+  - auto_attribute: true        # 命中后自动调归因(contribution)找根因
+  - generate_narrative: true    # 用叙事 prompt 生成人话(见 narrative_prompt.md)
+  - numeric_selfcheck: true     # 回答数字必须==工具返回
+  - deliver:
+      channels: [in_app_digest, email, webhook]   # 推送渠道
+      digest_template: ./insight_digest.example.json
+  - escalate:
+      when: "severity == high"
+      to: "门店店长 + 区域合规负责人"
+
+governance:
+  only_certified_metrics: true  # 主动推送只用已认证指标，避免误报负面影响
+  quiet_hours: "22:00-08:00"    # 非紧急不打扰
+  suppression: "用户可对某条洞察'不再提醒'，写入抑制名单"
