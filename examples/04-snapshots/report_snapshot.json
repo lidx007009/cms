@@ -1,0 +1,57 @@
+{
+  "snapshot_id": "SNAP-20260601-ORG1024-7f3a9c",
+  "schema_version": "1.2.0",
+  "template_id": "pharmacy_monthly_v3",
+  "contract_version": "1.4.0",
+
+  "context": {
+    "org": { "id": "ORG1024", "name": "康民大药房（中山北路店）" },
+    "period": { "month": "2026-05", "label": "2026年5月", "start": "2026-05-01", "end": "2026-05-31" }
+  },
+
+  "lineage": {
+    "generated_at": "2026-06-01T03:12:44+08:00",
+    "data_cutoff": "2026-05-31",
+    "pipeline_run_id": "airflow_dag_pharmacy_monthly__2026-06-01",
+    "datasources": [
+      { "name": "dw_olap", "table": "dws_pharmacy_sales_d", "freshness": "2026-06-01T01:30:00+08:00" },
+      { "name": "dw_olap", "table": "dws_compliance_txn_d", "freshness": "2026-06-01T01:45:00+08:00" }
+    ],
+    "indicator_catalog_version": "2026.05.0",
+    "llm": { "model": "your-llm-name", "version": "2026-04", "temperature": 0.2, "prompt_pack": "v2" },
+    "code_revision": "git:9f1c2ab"
+  },
+
+  "_comment": "frozen_values 是这份报告生成那一刻所有 slot 的冻结值。追问、复盘、对账都基于它，保证'报告里看到的数字'永远可复现。",
+  "frozen_values": {
+    "sales.amount":        { "raw": 2847500.0, "display": "¥2,847,500", "unit": "元" },
+    "sales.mom":           { "raw": -0.082, "display": "-8.2%", "level": "warn" },
+    "sales.yoy":           { "raw": 0.031, "display": "+3.1%", "level": "good" },
+    "gross_margin.rate":   { "raw": 0.241, "display": "24.1%" },
+    "rx.transfer_rate":    { "raw": 0.563, "display": "56.3%" },
+    "compliance.rate":     { "raw": 0.832, "display": "83.2%", "level": "bad", "mom": -0.061 },
+    "compliance.rx_rate":  { "raw": 0.74, "display": "74.0%", "level": "bad" },
+    "dtp.dot":             { "raw": 0.71, "display": "0.71", "level": "bad" },
+    "category.top3_growth":  [ {"name":"维生素","mom":0.18}, {"name":"医疗器械","mom":0.12}, {"name":"母婴","mom":0.09} ],
+    "category.top3_decline": [ {"name":"心血管","mom":-0.21}, {"name":"呼吸","mom":-0.14}, {"name":"抗感染","mom":-0.07} ]
+  },
+
+  "extra_data": {
+    "compliance_breakdown": [
+      { "dim": "prescription_type", "name": "纸质处方", "rate": 0.61, "contribution_to_drop": -0.042 },
+      { "dim": "prescription_type", "name": "电子处方", "rate": 0.97, "contribution_to_drop": -0.005 },
+      { "dim": "drug_category", "name": "心血管", "rate": 0.69, "contribution_to_drop": -0.018 }
+    ]
+  },
+
+  "generated_insights": {
+    "overview":   { "text": "本月销售额 ¥2,847,500(sales.amount)，环比下滑 8.2%...", "prompt_id": "PROMPT_OVERVIEW_V2", "token_usage": 612 },
+    "compliance": { "text": "本月合规整体处于高风险档：合规率 83.2%(compliance.rate)...", "prompt_id": "PROMPT_COMPLIANCE_V2", "token_usage": 740 }
+  },
+
+  "integrity": {
+    "hash_algo": "sha256",
+    "frozen_values_hash": "sha256:6b2d...e91",
+    "note": "前端展示 / 追问引用时校验该 hash，确保快照未被篡改。"
+  }
+}

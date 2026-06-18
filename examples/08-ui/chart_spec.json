@@ -1,0 +1,50 @@
+{
+  "_comment": "AI-to-UI 动态渲染协议。追问时 AI 的回答 = 一段文字 + 0~N 个图表指令。AI 绝不画图，只输出这种结构化 spec；前端图表引擎据此渲染。协议必须严格枚举 chart_type 和字段，前端才能稳定渲染、AI 才不会乱发挥。",
+
+  "version": "1.0",
+  "reply": {
+    "text": "阿托伐他汀5月合规率下滑主要由纸质处方拖累：纸质处方合规率仅61%，电子处方97%正常。建议对纸质处方加强先审方校验。",
+    "charts": [
+      {
+        "id": "chart-1",
+        "chart_type": "bar_chart",
+        "title": "阿托伐他汀 各处方类型合规率（2026-05）",
+        "x": { "field": "name", "label": "处方类型" },
+        "y": { "field": "rate", "label": "合规率", "format": "0.0%" },
+        "series": [
+          { "name": "纸质处方", "rate": 0.61 },
+          { "name": "电子处方", "rate": 0.97 },
+          { "name": "无处方", "rate": 0.40 }
+        ],
+        "highlight": { "rule": "rate < 0.85", "color": "red" },
+        "source": { "skill": "get_indicator_by_dimension", "snapshot_id": "SNAP-20260601-ORG1024-7f3a9c" }
+      },
+      {
+        "id": "chart-2",
+        "chart_type": "line_chart",
+        "title": "阿托伐他汀 销售额近12个月趋势",
+        "x": { "field": "month", "label": "月份" },
+        "y": { "field": "value", "label": "销售额(元)", "format": "¥#,##0" },
+        "series": [
+          { "month": "2025-06", "value": 41200 },
+          { "month": "2025-07", "value": 39800 },
+          { "month": "2026-05", "value": 28900 }
+        ],
+        "annotations": [ { "month": "2026-05", "text": "环比-21%", "type": "warn" } ]
+      }
+    ],
+    "follow_up_suggestions": [
+      "看看纸质处方下滑是哪些门店造成的？",
+      "对比一下同类他汀药的合规率"
+    ]
+  },
+
+  "supported_chart_types": {
+    "line_chart": "趋势/时间序列",
+    "bar_chart": "维度对比/排名",
+    "pie_chart": "构成占比",
+    "table": "明细/多列数据",
+    "kpi_card": "单个关键数字+同环比",
+    "waterfall": "归因/贡献度分解"
+  }
+}

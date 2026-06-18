@@ -1,0 +1,103 @@
+# 指标库目录（Indicator Catalog）
+# 由"数据/后端团队"维护。这是所有指标的"唯一事实来源(SSOT)"。
+# 报告映射契约 semantic_binding.json 里的 indicator_id 必须能在这里找到。
+# 追问场景的 Skills、元数据字典也都引用这里，保证口径全局一致。
+
+version: "2026.05.0"
+
+indicators:
+  - id: IND_SALES_AMOUNT
+    name: 销售额
+    aliases: [营业额, 销售金额, GMV, 卖了多少钱]
+    description: 指定机构、指定周期内的含税销售总额（退货已扣除）。
+    value_type: money
+    unit: 元
+    grain: [org, day]                 # 最细粒度
+    default_period: month
+    supported_dims: [drug_category, drug_id, payment_method, channel, source_type]
+    supported_transforms: [mom, yoy, trend_12m, by_dim, contribution]
+    # 取数实现：可以是预计算宽表，也可以是物化视图/OLAP 查询
+    impl:
+      type: sql
+      datasource: dw_olap
+      sql: |
+        SELECT SUM(amount) AS value
+        FROM dws_pharmacy_sales_d
+        WHERE org_id = :org_id
+          AND stat_date BETWEEN :period_start AND :period_end
+    freshness_sla: "T+1 06:00"
+
+  - id: IND_GROSS_MARGIN_RATE
+    name: 毛利率
+    aliases: [毛利, 利润率]
+    description: (销售额 - 成本) / 销售额。
+    value_type: percent
+    grain: [org, day]
+    supported_dims: [drug_category, drug_id]
+    supported_transforms: [mom, yoy, trend_12m, by_dim]
+
+  - id: IND_RX_TRANSFER_RATE
+    name: 处方流转率
+    aliases: [处方流转, 电子处方转化率]
+    description: 成功流转的电子处方数 / 总处方需求数。
+    value_type: percent
+    grain: [org, day]
+    supported_dims: [hospital_type, drug_category]
+    supported_transforms: [mom, yoy, trend_12m, by_dim]
+
+  - id: IND_COMPLIANCE_RATE
+    name: 合规率
+    aliases: [合规经营率, 合规, 合不合规]
+    description: 合规交易笔数 / 总交易笔数。scope=rx 时只统计处方药。
+    value_type: percent
+    grain: [org, day]
+    params_extra:
+      scope: { type: enum, values: [all, rx, otc], default: all }
+    supported_dims: [drug_category, drug_id, prescription_type, hospital_type]
+    supported_transforms: [mom, yoy, trend_12m, by_dim, contribution]
+
+  - id: IND_DTP_DOT
+    name: DTP 用药持续天数
+    aliases: [DOT, days of therapy, 用药依从]
+    description: DTP（直接面向患者）业务的平均治疗天数指标，反映患者依从度。
+    value_type: number
+    grain: [org, month]
+    supported_dims: [drug_id, disease_area]
+    supported_transforms: [mom, yoy, trend_12m]
+
+  - id: IND_CATEGORY_GROWTH_RANK
+    name: 品类增长排名
+    description: 按环比增速对品类排序（派生指标，依赖 IND_SALES_AMOUNT 的 by_dim + mom）。
+    value_type: list
+    derived_from: IND_SALES_AMOUNT
+    supported_dims: [drug_category]
+
+# 维度定义（被追问场景复用）
+dimensions:
+  - id: drug_category
+    name: 药品品类
+    aliases: [品类, 类别, 大类]
+    value_table: dim_drug_category
+  - id: drug_id
+    name: 药品
+    aliases: [药, 药品, 单品, 商品]
+    value_table: dim_drug
+  - id: payment_method
+    name: 支付方式
+    aliases: [支付, 医保还是自费, 结算方式]
+    enum: [医保, 自费, 商保]
+  - id: source_type
+    name: 客流来源
+    aliases: [来源, 渠道来源, 自然客流还是导流]
+    enum: [自然到店, 处方导流, 线上引流, 会员复购]
+  - id: prescription_type
+    name: 处方类型
+    aliases: [处方种类, 处方分类]
+    enum: [纸质处方, 电子处方, 无处方]
+  - id: hospital_type
+    name: 医院类型
+    aliases: [医院级别, 来源医院]
+    enum: [三甲, 二级, 社区, 互联网医院]
+  - id: disease_area
+    name: 疾病领域
+    aliases: [适应症, 病种]

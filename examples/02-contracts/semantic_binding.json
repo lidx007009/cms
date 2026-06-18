@@ -1,0 +1,114 @@
+{
+  "$schema": "./semantic_binding.schema.json",
+  "contract_version": "1.4.0",
+  "template_id": "pharmacy_monthly_v3",
+  "description": "药店月度经营分析报告 模板↔指标 语义映射契约。每个 slot 声明它从哪个指标、用什么口径、怎么格式化得到。AI 不参与这一步。",
+
+  "data_slots": {
+    "org.name": {
+      "source": "context",
+      "path": "$.org.name",
+      "type": "string",
+      "required": true
+    },
+    "period.label": {
+      "source": "context",
+      "path": "$.period.label",
+      "type": "string",
+      "example": "2026年5月"
+    },
+    "meta.generated_at": { "source": "system", "value": "$.now", "type": "datetime", "format": "yyyy-MM-dd HH:mm" },
+    "meta.data_cutoff": { "source": "snapshot", "path": "$.lineage.data_cutoff", "type": "datetime", "format": "yyyy-MM-dd" },
+    "meta.snapshot_id": { "source": "snapshot", "path": "$.snapshot_id", "type": "string" },
+
+    "sales.amount": {
+      "source": "indicator",
+      "indicator_id": "IND_SALES_AMOUNT",
+      "params": { "org_id": "$.org.id", "period": "$.period.month", "currency": "CNY" },
+      "type": "money",
+      "format": "¥#,##0",
+      "unit": "元",
+      "required": true,
+      "on_missing": "fail"
+    },
+    "sales.mom": {
+      "source": "indicator",
+      "indicator_id": "IND_SALES_AMOUNT",
+      "transform": "mom",
+      "params": { "org_id": "$.org.id", "period": "$.period.month" },
+      "type": "percent",
+      "format": "+0.0%;-0.0%",
+      "thresholds": { "good": ">=0.05", "warn": "[-0.05,0.05)", "bad": "<-0.05" }
+    },
+    "sales.yoy": {
+      "source": "indicator",
+      "indicator_id": "IND_SALES_AMOUNT",
+      "transform": "yoy",
+      "params": { "org_id": "$.org.id", "period": "$.period.month" },
+      "type": "percent",
+      "format": "+0.0%;-0.0%"
+    },
+    "gross_margin.rate": {
+      "source": "indicator",
+      "indicator_id": "IND_GROSS_MARGIN_RATE",
+      "params": { "org_id": "$.org.id", "period": "$.period.month" },
+      "type": "percent",
+      "format": "0.0%"
+    },
+    "rx.transfer_rate": {
+      "source": "indicator",
+      "indicator_id": "IND_RX_TRANSFER_RATE",
+      "params": { "org_id": "$.org.id", "period": "$.period.month" },
+      "type": "percent",
+      "format": "0.0%"
+    },
+
+    "compliance.rate": {
+      "source": "indicator",
+      "indicator_id": "IND_COMPLIANCE_RATE",
+      "params": { "org_id": "$.org.id", "period": "$.period.month", "scope": "all" },
+      "type": "percent",
+      "format": "0.0%",
+      "thresholds": { "good": ">=0.95", "warn": "[0.85,0.95)", "bad": "<0.85" }
+    },
+    "compliance.mom": {
+      "source": "indicator", "indicator_id": "IND_COMPLIANCE_RATE", "transform": "mom",
+      "params": { "org_id": "$.org.id", "period": "$.period.month", "scope": "all" },
+      "type": "percent", "format": "+0.0%;-0.0%"
+    },
+    "compliance.rx_rate": {
+      "source": "indicator", "indicator_id": "IND_COMPLIANCE_RATE",
+      "params": { "org_id": "$.org.id", "period": "$.period.month", "scope": "rx" },
+      "type": "percent", "format": "0.0%"
+    },
+    "dtp.dot": {
+      "source": "indicator", "indicator_id": "IND_DTP_DOT",
+      "params": { "org_id": "$.org.id", "period": "$.period.month" },
+      "type": "number", "format": "0.00",
+      "thresholds": { "good": ">=1.0", "warn": "[0.8,1.0)", "bad": "<0.8" }
+    },
+
+    "category.top3_growth": {
+      "source": "indicator", "indicator_id": "IND_CATEGORY_GROWTH_RANK",
+      "params": { "org_id": "$.org.id", "period": "$.period.month", "order": "desc", "limit": 3 },
+      "type": "list", "format": "name (mom)"
+    },
+    "category.top3_decline": {
+      "source": "indicator", "indicator_id": "IND_CATEGORY_GROWTH_RANK",
+      "params": { "org_id": "$.org.id", "period": "$.period.month", "order": "asc", "limit": 3 },
+      "type": "list", "format": "name (mom)"
+    }
+  },
+
+  "insight_slots": {
+    "overview":        { "prompt_id": "PROMPT_OVERVIEW_V2",   "feed_slots": ["sales.amount", "sales.mom", "sales.yoy", "gross_margin.rate", "rx.transfer_rate"], "max_words": 180 },
+    "compliance":      { "prompt_id": "PROMPT_COMPLIANCE_V2", "feed_slots": ["compliance.rate", "compliance.mom", "compliance.rx_rate", "dtp.dot"], "extra_data": ["compliance_breakdown"], "max_words": 200 },
+    "category":        { "prompt_id": "PROMPT_CATEGORY_V1",   "feed_slots": ["category.top3_growth", "category.top3_decline"], "max_words": 160 },
+    "risk_and_action": { "prompt_id": "PROMPT_RISK_V1",       "feed_slots": ["*"], "max_words": 220 }
+  },
+
+  "chart_anchors": {
+    "overview_trend":        { "indicator_id": "IND_SALES_AMOUNT", "view": "trend_12m", "chart_type": "line_chart" },
+    "compliance_by_category":{ "indicator_id": "IND_COMPLIANCE_RATE", "view": "by_dim", "dim": "drug_category", "chart_type": "bar_chart" }
+  }
+}

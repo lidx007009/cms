@@ -1,0 +1,50 @@
+# 面向 AI 的业务元数据字典（Metadata Dictionary for AI）
+# 作用：在追问场景里，把这份字典（裁剪后）拼进 system prompt，
+# AI 据此知道"有哪些指标、各自能按什么维度拆、口语词怎么映射成ID"。
+# 它和 indicator_catalog.yaml 同源（自动生成），但措辞更"自然语言、给模型看"。
+
+# === 1. 指标可被自然语言命中的索引 ===
+indicators:
+  - id: IND_SALES_AMOUNT
+    say_as: ["销售额", "营业额", "卖了多少", "GMV", "收入"]
+    can_split_by: [drug_category, drug_id, payment_method, source_type, channel]
+    notes: "钱的口径是含税、已扣退货。"
+  - id: IND_COMPLIANCE_RATE
+    say_as: ["合规率", "合不合规", "合规经营", "合规情况"]
+    can_split_by: [drug_category, drug_id, prescription_type, hospital_type]
+    has_scopes: { all: "全部", rx: "只看处方药", otc: "只看非处方药" }
+    notes: "用户说'处方药合规率'→ scope=rx。"
+  - id: IND_RX_TRANSFER_RATE
+    say_as: ["处方流转率", "处方流转", "电子处方转化"]
+    can_split_by: [hospital_type, drug_category]
+  - id: IND_DTP_DOT
+    say_as: ["DOT", "用药天数", "用药依从", "DTP依从"]
+    can_split_by: [drug_id, disease_area]
+
+# === 2. 维度同义词（口语 → 维度ID） ===
+dimensions:
+  drug_category: ["品类", "类别", "大类", "按品类"]
+  drug_id: ["药", "药品", "单品", "商品", "某个药"]
+  payment_method: ["支付方式", "医保还是自费", "结算方式"]
+  source_type: ["来源", "客流来源", "从哪来的"]
+  prescription_type: ["处方类型", "纸质还是电子", "处方分类"]
+  hospital_type: ["医院类型", "医院级别", "来源医院"]
+
+# === 3. 口语动作 → 该调哪个 skill（给模型的"路由提示"） ===
+intent_routing:
+  - when: "问某个值/同环比"
+    use: get_indicator
+  - when: "问'按X看''哪个X最高''拆开'"
+    use: get_indicator_by_dimension
+  - when: "问'为什么''原因''谁拖累的'"
+    use: get_root_cause_analysis
+  - when: "问'趋势''近几个月''走势'"
+    use: get_indicator_trend
+  - when: "出现具体药名/医院名等实体"
+    use: "先 resolve_entity 再带 filters 调用"
+
+# === 4. 默认口径（消除歧义） ===
+defaults:
+  period: "继承会话焦点周期；都没有则取最近一个完结月"
+  transform: raw
+  topN: 10
