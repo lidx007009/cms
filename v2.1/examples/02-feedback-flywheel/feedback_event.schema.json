@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Feedback Event",
+  "_comment": "2.1 增量②：把用户每次反馈结构化采集。这是数据飞轮的原料。注意要带上'当时的完整上下文'(query/resolved/tool_calls/answer)，否则无法复盘与回灌。",
+  "type": "object",
+  "required": ["event_id", "session_id", "turn_id", "signal", "context"],
+  "properties": {
+    "event_id": { "type": "string" },
+    "session_id": { "type": "string" },
+    "turn_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+
+    "signal": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["thumbs_up", "thumbs_down", "adopted", "edited", "rerun", "report_error"] },
+        "_comment_type": "thumbs=显式好评/差评; adopted=用户采纳了seed_question或建议; edited=用户改写了AI的查询; rerun=重试; report_error=举报数字错误",
+        "reason_tags": { "type": "array", "items": { "enum": ["数字错", "答非所问", "缺图", "归因不准", "口径错", "很有用"] } },
+        "free_text": { "type": "string" }
+      }
+    },
+
+    "context": {
+      "type": "object",
+      "required": ["user_query"],
+      "properties": {
+        "user_query": { "type": "string" },
+        "resolved_intent": { "type": "string" },
+        "tool_calls": { "type": "array", "description": "AI 实际调用的工具+参数(语义查询)" },
+        "answer": { "type": "object", "description": "AI 的结构化回答" },
+        "corrected_query": { "type": "object", "description": "若 signal=edited，用户修正后的正确查询(高价值正样本!)" },
+        "snapshot_id": { "type": "string" },
+        "retrieval_hits": { "type": "array", "description": "本轮 RAG 召回的指标/维度，用于评估召回质量" }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# PII / 敏感数据脱敏策略（2.1 增量③，医药合规重点）
+
+classification:
+  - field: patient_name
+    level: pii_high
+    action: mask          # 张三 -> 张*
+  - field: phone
+    level: pii_high
+    action: partial_mask  # 138****1234
+  - field: id_card
+    level: pii_high
+    action: hash_or_block
+  - field: prescription_id
+    level: pii_medium
+    action: tokenize      # 用稳定 token 替代，保留可关联性
+  - field: doctor_name
+    level: pii_medium
+    action: role_based    # 仅合规负责人可见明文
+  - field: drug_id / drug_name / category
+    level: business
+    action: allow
+
+enforcement:
+  default: "未分类字段默认按 pii_medium 处理(最小惊讶 + 安全优先)"
+  aggregate_ok: "聚合结果(如某品类合规率)不含个体PII，可正常展示"
+  detail_query: "需要明细时，按 role_based 控制 + 全量脱敏 + 审计留痕"
+  export: "原始明细导出默认禁止；如开放需二次审批 + 水印 + 审计"
+
+audit:
+  log: "任何 pii_high 字段被访问/展示都记录 who/when/why"
+  retention_days: 365
