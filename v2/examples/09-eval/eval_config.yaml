@@ -1,0 +1,26 @@
+# 评测框架配置（2.0 升级点 D）—— 让方案"能长期运营"的分水岭
+# 每次改 Prompt / 换模型 / 改语义层，CI 自动跑这套评测，红线不过禁止上线。
+
+golden_set: ./eval_golden_set.jsonl
+
+checks:
+  exact_match_vs_bi:        { kind: numeric, tolerance: 0.0, severity: blocker }   # 数值对账，必须 100%
+  no_hallucination:         { kind: rule, severity: blocker }                      # 回答数字∈注入数据
+  numeric_selfcheck:        { kind: rule, severity: blocker }                      # 回答数字==工具返回
+  row_level_security:       { kind: rule, severity: blocker }                      # 越权必拦
+  boundary:                 { kind: rule, severity: blocker }                      # 能力外必兜底
+  tool_and_args:            { kind: rule, severity: major }                        # 工具+参数正确
+  must_clarify:             { kind: rule, severity: major }
+  chart_type:               { kind: rule, severity: minor }
+  keyword:                  { kind: rule, severity: minor }
+  insight_quality:          { kind: llm_judge, prompt: ./llm_judge_prompt.md, severity: minor }
+
+gates:                      # 上线门禁
+  blocker_pass_rate: 1.00   # blocker 必须全过
+  major_pass_rate:   0.95
+  minor_pass_rate:   0.85
+
+reporting:
+  output: ./eval_report.html
+  track_history: true       # 与上次对比，回归即报警
+  fail_ci_on_gate_violation: true

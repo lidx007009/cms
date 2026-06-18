@@ -1,0 +1,56 @@
+{
+  "snapshot_id": "SNAP-20260601-ORG1024-9a2b1f",
+  "schema_version": "2.0.0",
+  "template_id": "pharmacy_monthly_v2",
+  "contract_version": "2.0.0",
+
+  "context": {
+    "org": { "id": "ORG1024", "name": "康民大药房（中山北路店）" },
+    "period": { "month": "2026-05", "label": "2026年5月", "start": "2026-05-01", "end": "2026-05-31" }
+  },
+
+  "lineage": {
+    "generated_at": "2026-06-01T03:12:44+08:00",
+    "data_cutoff": "2026-05-31",
+    "pipeline_run_id": "airflow__pharmacy_monthly__2026-06-01",
+    "semantic_layer": { "engine": "cube", "version": "2.0.0", "metrics_git": "git:7c4d11a" },
+    "compiled_queries": {
+      "_comment": "2.0 新增：记录语义层为每个 slot 编译出的最终 SQL 指纹，行级可审计、可复现。",
+      "compliance.rate": { "sql_fingerprint": "sha256:1aa9...", "rows_scanned": 18234, "exec_ms": 142 }
+    },
+    "datasources": [
+      { "table": "dw.dws_compliance_txn_d", "freshness": "2026-06-01T01:45:00+08:00" }
+    ],
+    "llm": { "router_model": "small-7b", "synthesis_model": "your-llm", "version": "2026-04", "temperature": 0.2, "structured_output": true, "prompt_pack": "v2" },
+    "eval": { "preflight_eval_run": "eval-2026-06-01-09", "passed": true, "numeric_check": "passed" },
+    "code_revision": "git:9f1c2ab"
+  },
+
+  "frozen_values": {
+    "sales.amount":       { "raw": 2847500.0, "display": "¥2,847,500" },
+    "sales.mom":          { "raw": -0.082, "display": "-8.2%", "level": "warn" },
+    "gross_margin.rate":  { "raw": 0.241, "display": "24.1%" },
+    "compliance.rate":    { "raw": 0.832, "display": "83.2%", "level": "bad", "mom": -0.061 },
+    "compliance.rx_rate": { "raw": 0.74, "display": "74.0%", "level": "bad" },
+    "dtp.dot":            { "raw": 0.71, "display": "0.71", "level": "bad" }
+  },
+
+  "extra_data": {
+    "compliance_breakdown": [
+      { "dim": "prescription_type", "name": "纸质处方", "rate": 0.61, "contribution_to_drop": -0.042 },
+      { "dim": "prescription_type", "name": "电子处方", "rate": 0.97, "contribution_to_drop": -0.005 }
+    ]
+  },
+
+  "generated_insights": {
+    "compliance": {
+      "json": { "conclusion": "本月合规处于高风险档...", "used_numbers": [{"field":"compliance.rate","value":0.832}] },
+      "rendered_text": "本月合规处于高风险档：合规率83.2%(compliance.rate)...",
+      "prompt_id": "PROMPT_COMPLIANCE_V2",
+      "numeric_check": "passed",
+      "token_usage": 740
+    }
+  },
+
+  "integrity": { "hash_algo": "sha256", "frozen_values_hash": "sha256:6b2d...e91" }
+}

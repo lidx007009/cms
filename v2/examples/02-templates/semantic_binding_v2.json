@@ -1,0 +1,69 @@
+{
+  "$schema": "./semantic_binding_v2.schema.json",
+  "contract_version": "2.0.0",
+  "template_id": "pharmacy_monthly_v2",
+  "_comment": "2.0：data_slot 绑定到【语义层查询】而非内嵌 SQL。后端把 query 交给语义层引擎编译执行，AI 不参与。format/thresholds 与 1.0 一致。",
+
+  "data_slots": {
+    "org.name":          { "source": "context", "path": "$.org.name", "type": "string", "required": true },
+    "period.label":      { "source": "context", "path": "$.period.label", "type": "string" },
+    "meta.generated_at": { "source": "system", "value": "$.now", "type": "datetime", "format": "yyyy-MM-dd HH:mm" },
+    "meta.data_cutoff":  { "source": "snapshot", "path": "$.lineage.data_cutoff", "type": "datetime" },
+    "meta.snapshot_id":  { "source": "snapshot", "path": "$.snapshot_id", "type": "string" },
+
+    "sales.amount": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_SALES_AMOUNT", "time": { "grain": "month", "range": ["$period", "$period"] } },
+      "type": "money", "format": "¥#,##0", "required": true, "on_missing": "fail"
+    },
+    "sales.mom": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_SALES_AMOUNT", "time": { "grain": "month", "range": ["$period", "$period"] }, "transforms": ["mom"] },
+      "type": "percent", "format": "+0.0%;-0.0%",
+      "thresholds": { "good": ">=0.05", "warn": "[-0.05,0.05)", "bad": "<-0.05" }
+    },
+    "sales.yoy": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_SALES_AMOUNT", "time": { "grain": "month", "range": ["$period", "$period"] }, "transforms": ["yoy"] },
+      "type": "percent", "format": "+0.0%;-0.0%"
+    },
+    "gross_margin.rate": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_GROSS_MARGIN_RATE", "time": { "grain": "month", "range": ["$period", "$period"] } },
+      "type": "percent", "format": "0.0%"
+    },
+    "compliance.rate": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_COMPLIANCE_RATE", "scope": "all", "time": { "grain": "month", "range": ["$period", "$period"] } },
+      "type": "percent", "format": "0.0%",
+      "thresholds": { "good": ">=0.95", "warn": "[0.85,0.95)", "bad": "<0.85" }
+    },
+    "compliance.mom": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_COMPLIANCE_RATE", "scope": "all", "time": { "grain": "month", "range": ["$period", "$period"] }, "transforms": ["mom"] },
+      "type": "percent", "format": "+0.0%;-0.0%"
+    },
+    "compliance.rx_rate": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_COMPLIANCE_RATE", "scope": "rx", "time": { "grain": "month", "range": ["$period", "$period"] } },
+      "type": "percent", "format": "0.0%"
+    },
+    "dtp.dot": {
+      "source": "semantic_query",
+      "query": { "metric": "IND_DTP_DOT", "time": { "grain": "month", "range": ["$period", "$period"] } },
+      "type": "number", "format": "0.00",
+      "thresholds": { "good": ">=1.0", "warn": "[0.8,1.0)", "bad": "<0.8" }
+    }
+  },
+
+  "insight_slots": {
+    "overview":        { "prompt_id": "PROMPT_OVERVIEW_V2",   "feed_slots": ["sales.amount", "sales.mom", "sales.yoy", "gross_margin.rate"], "max_words": 180 },
+    "compliance":      { "prompt_id": "PROMPT_COMPLIANCE_V2", "feed_slots": ["compliance.rate", "compliance.mom", "compliance.rx_rate", "dtp.dot"], "extra_query": "compliance_breakdown", "max_words": 200 },
+    "risk_and_action": { "prompt_id": "PROMPT_RISK_V1",       "feed_slots": ["*"], "max_words": 220 }
+  },
+
+  "chart_anchors": {
+    "overview_trend":        { "query": { "metric": "IND_SALES_AMOUNT", "time": { "grain": "month", "range": ["$period-11", "$period"] }, "transforms": ["trend"] }, "chart": "vega:line" },
+    "compliance_by_category":{ "query": { "metric": "IND_COMPLIANCE_RATE", "group_by": ["drug_category"], "time": { "grain": "month", "range": ["$period", "$period"] } }, "chart": "vega:bar" }
+  }
+}
