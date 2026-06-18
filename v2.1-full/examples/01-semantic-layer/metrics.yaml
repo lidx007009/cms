@@ -14,22 +14,34 @@ semantic_layer:
   version: "2.0.0"
 
 # ---- 实体（粒度主键，用于跨表 join 与行级权限）----
+# 说明：过滤条件里写 {"dimension":"drug","value":"D8821"} 时，
+#       语义层把 drug 解析到各事实表上的 drug_id 字段（见 data_sources.keys）。
 entities:
   - name: org
     primary_key: org_id
   - name: drug
     primary_key: drug_id
 
-# ---- 数据源（语义层负责编译 SQL，这里只给底表）----
+# ---- 数据源（语义层负责编译 SQL，这里给底表 + 关键字段，逐字段说明见 source_tables.md）----
 data_sources:
   - name: sales_fct
-    table: dw.dws_pharmacy_sales_d
+    table: dw.dws_pharmacy_sales_d        # 药店销售日汇总事实表，粒度=门店×药品×支付方式×客流来源×日
     time_dimension: stat_date
     grain: day
+    keys: { org: org_id, drug: drug_id }  # 实体→本表字段映射，供 join / 行级权限 / 实体过滤
+    fields: [stat_date, org_id, drug_id, drug_category, payment_method, source_type, amount, cost, qty, is_return]
   - name: compliance_fct
-    table: dw.dws_compliance_txn_d
+    table: dw.dws_compliance_txn_d        # 合规交易明细事实表，粒度=单笔交易 txn
     time_dimension: stat_date
     grain: day
+    keys: { org: org_id, drug: drug_id }
+    fields: [stat_date, org_id, txn_id, drug_id, drug_category, prescription_type, hospital_type, is_rx, is_compliant, patient_name, phone, id_card, doctor_name]
+  - name: dot_fct
+    table: dw.dws_dtp_dot_m               # DTP 用药依从月表，粒度=门店×药品×月
+    time_dimension: stat_month
+    grain: month
+    keys: { org: org_id, drug: drug_id }
+    fields: [stat_month, org_id, drug_id, disease_area, dot_avg]
 
 # ---- 维度（追问下钻、报告分组共用）----
 dimensions:
@@ -54,6 +66,10 @@ dimensions:
     sql: "{compliance_fct}.hospital_type"
     type: categorical
     label: 医院类型
+  - name: disease_area
+    sql: "{dot_fct}.disease_area"
+    type: categorical
+    label: 疾病领域
   - name: month
     sql: "date_trunc('month', {time})"
     type: time
@@ -79,6 +95,10 @@ measures:
     label: 总交易数
     agg: count
     sql: "{compliance_fct}.txn_id"
+  - name: dot_avg
+    label: 平均用药持续天数
+    agg: avg
+    sql: "{dot_fct}.dot_avg"
 
 # ---- 指标（对外暴露给报告 / AI 的"业务指标"，可由 measure 复合而成）----
 metrics:

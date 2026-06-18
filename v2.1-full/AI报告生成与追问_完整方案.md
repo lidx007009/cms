@@ -47,7 +47,8 @@
 - 报告、追问、主动洞察、BI 看板**共用同一套口径**，根除"同一个销售额各处算法不一样"的漂移。
 - 指标分 `simple`（如销售额）/ `ratio`（如合规率=合规数/总数），支持 `scope`(rx/otc)、`transforms`(mom/yoy/trend/by_dim/contribution)。
 - 治理元信息 `certified`/`freshness_sla`/`pii_level` 被快照与评测引用；**报告只允许引用 `certified=true` 的指标**。
-> 这是地基。绝不让 AI 碰裸 SQL，AI 只产"语义查询"，由本层编译执行（见 `examples/01-semantic-layer/semantic_query.example.json`）。
+- **底表与字段从哪来**：`examples/01-semantic-layer/source_tables.md` 是逐字段数据字典（每张底表的字段名/类型/含义/示例/是否PII + "字段→度量/维度→指标"血缘总表）；`metrics.yaml` 的 `data_sources` 也直接列出每张表的 `table`/`keys`/`fields`。
+> 这是地基。绝不让 AI 碰裸 SQL，AI 只产"语义查询"，由本层编译执行（见 `examples/01-semantic-layer/semantic_query.example.json`，其中每个例子都附了 `touches`(命中的表/字段) 与 `compiled_sql_preview`(编译后 SQL 示意)，让"查询→表→字段"全链路可见）。
 
 ## 1.2 模板 + 语义映射契约
 - 模板 `examples/02-templates/report_template.md`：只放结构 + 两种占位符——`{{slot:*}}`（数据槽，后端填）/`{{insight:*}}`（推理槽，AI 填）/`<!-- chart-anchor -->`（图表锚点）。
@@ -194,7 +195,7 @@
 
 | # | 组件 | 文件 |
 |---|---|---|
-| 01 | 语义层 + 语义查询 | `01-semantic-layer/metrics.yaml` / `semantic_query.example.json` |
+| 01 | 语义层 + 语义查询 + 底表字段字典 | `01-semantic-layer/metrics.yaml` / `semantic_query.example.json` / `source_tables.md` |
 | 02 | 模板 + 映射契约 + Schema | `02-templates/report_template.md` / `semantic_binding.json` / `semantic_binding.schema.json` |
 | 03 | 章节推理 Prompt | `03-prompts/PROMPT_COMPLIANCE.md` |
 | 04 | 版本快照(含编译SQL指纹) | `04-snapshots/report_snapshot.json` |

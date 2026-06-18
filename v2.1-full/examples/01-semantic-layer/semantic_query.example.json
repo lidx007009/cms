@@ -1,5 +1,6 @@
 {
   "_comment": "AI 不写裸 SQL。对于追问(尤其长尾组合)，AI 产出这种【受约束的语义层查询(semantic query)】，后端校验(指标/维度/scope 合法 + 行级权限 + 自动 LIMIT)后交给语义层引擎编译执行。安全性≈固定API，灵活性≈SQL。",
+  "_note_tables_fields": "语义查询本身只引用'指标名/维度名'，看不到表和字段——这是抽象。真正落到哪张表/哪个字段由 metrics.yaml 决定，逐字段说明见 source_tables.md。下面每个例子额外给了 compiled_sql_preview 与 touches，让你看到'查询→表→字段'的完整链路(实际 SQL 由语义层引擎生成，此处为示意)。",
 
   "examples": [
     {
@@ -11,10 +12,15 @@
         "filters": [{ "dimension": "drug", "op": "=", "value": "D8821" }],
         "transforms": ["mom"],
         "limit": 1
-      }
+      },
+      "touches": {
+        "table": "dw.dws_compliance_txn_d",
+        "fields": ["is_compliant", "txn_id", "is_rx (scope=rx)", "drug_id (filter)", "org_id (行级权限,后端注入)", "stat_date (time)"]
+      },
+      "compiled_sql_preview": "SELECT SUM(CASE WHEN is_compliant=1 THEN 1 ELSE 0 END)*1.0 / COUNT(txn_id) AS value\nFROM dw.dws_compliance_txn_d\nWHERE org_id IN (:session_org_ids)   -- 行级权限，AI 无权指定\n  AND drug_id = 'D8821'\n  AND is_rx = 1                       -- scope=rx\n  AND stat_date BETWEEN '2026-05-01' AND '2026-05-31'\n-- mom: 再对 2026-04 跑一次并相除"
     },
     {
-      "title": "按维度下钻（get_indicator_by_dimension）",
+      "title": "按维度下钻（按处方类型拆合规率）",
       "query": {
         "metric": "IND_COMPLIANCE_RATE",
         "group_by": ["prescription_type"],
@@ -22,7 +28,12 @@
         "filters": [{ "dimension": "drug", "op": "=", "value": "D8821" }],
         "order_by": [{ "field": "value", "dir": "asc" }],
         "limit": 20
-      }
+      },
+      "touches": {
+        "table": "dw.dws_compliance_txn_d",
+        "fields": ["prescription_type (group by)", "is_compliant", "txn_id", "drug_id (filter)", "org_id", "stat_date"]
+      },
+      "compiled_sql_preview": "SELECT prescription_type,\n       SUM(CASE WHEN is_compliant=1 THEN 1 ELSE 0 END)*1.0 / COUNT(txn_id) AS value\nFROM dw.dws_compliance_txn_d\nWHERE org_id IN (:session_org_ids) AND drug_id='D8821'\n  AND stat_date BETWEEN '2026-05-01' AND '2026-05-31'\nGROUP BY prescription_type\nORDER BY value ASC\nLIMIT 20"
     },
     {
       "title": "归因（contribution，谁拖累了它）",
@@ -46,7 +57,12 @@
         "having": { "metric": "IND_SALES_AMOUNT", "op": ">", "value": 100000 },
         "order_by": [{ "field": "value", "dir": "desc" }],
         "limit": 50
-      }
+      },
+      "touches": {
+        "table": "dw.dws_pharmacy_sales_d",
+        "fields": ["amount (SUM)", "is_return (默认过滤)", "payment_method (group by)", "source_type (group by)", "drug_category (filter)", "org_id", "stat_date"]
+      },
+      "compiled_sql_preview": "SELECT payment_method, source_type, SUM(amount) AS value\nFROM dw.dws_pharmacy_sales_d\nWHERE org_id IN (:session_org_ids)\n  AND is_return = 0\n  AND drug_category IN ('心血管','呼吸')\n  AND stat_date BETWEEN '2026-03-01' AND '2026-05-31'\nGROUP BY payment_method, source_type\nHAVING SUM(amount) > 100000\nORDER BY value DESC\nLIMIT 50"
     }
   ],
 
