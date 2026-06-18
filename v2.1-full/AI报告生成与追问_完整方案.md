@@ -259,9 +259,12 @@
 ## 8.3 要不要"自研 AI 智能体 + Skill"——要，但用对地方
 | 场景 | 用什么 |
 |---|---|
-| **生成报告** | 工作流编排(非 Agent) + 章节 LLM 调用（流程确定，用 Agent 反而不稳） |
+| **开发报告(开发态)** | **报告开发 Copilot(Authoring Agent) + 开发态 Skill**：对话式起草模板/契约/Prompt，人确认+过评测才发布（见 `examples/18-platform/report_authoring_agent.md`） |
+| **生成报告(运行态)** | 工作流编排(非 Agent) + 章节 LLM 调用（流程确定，用 Agent 反而不稳） |
 | **报告内追问** | **单编排 Agent + 受控 Skill(MCP)**（问题不确定，正是 Agent 价值） |
 | **主动洞察** | 离线管道 + 复用归因/叙事 Skill |
+
+> 注意区分两个 Agent：**报告开发 Agent**(开发态，调"开发态 Skill"产出**制品**，人在环+评测门禁发布) ≠ **追问 Agent**(运行态，调"查数 Skill"产出**答案**)。
 
 形态建议：**单个编排 Agent 调一组强类型 Skill，不要多 Agent 群**；**Skill=自研受控业务能力(语义查询/实体消歧/预测/元数据检索)，用 MCP 暴露**；Agent 运行时可基于成熟框架(LangGraph 等)，业务 Skill 自研，即"**自研业务 Skill + 标准 Agent 运行时 + 受控编排 + 强护栏**"；Agent 必须被 Guardrails 包裹、步数上限、数值自校验、只能调注册 Skill。
 
@@ -298,3 +301,4 @@
 | 16 | 端到端流水线(A/B/C) | `16-pipeline/pipeline.py` |
 | 17 | 多轮追问 trace | `17-conversation/drilldown_trace.md` |
 | 18 | 平台设计(开发态/运行态+Agent/Skill) | `18-platform/buildtime_vs_runtime.md` |
+| 18 | 报告开发 Copilot(对话式开发报告) | `18-platform/report_authoring_agent.md` |
